@@ -62,39 +62,7 @@ func (c *Client) doRequest(ctx context.Context, method, path string, result inte
 	}
 	u.Path = path
 
-	req, err := http.NewRequestWithContext(ctx, method, u.String(), nil)
-	if err != nil {
-		return fmt.Errorf("create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Token "+c.token)
-	req.Header.Set("Accept", "application/json")
-
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return fmt.Errorf("do request: %w", err)
-	}
-	defer resp.Body.Close()
-
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		return fmt.Errorf("read response: %w", err)
-	}
-
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
-		return &Error{
-			StatusCode: resp.StatusCode,
-			Message:    string(body),
-		}
-	}
-
-	if result != nil {
-		if err := json.Unmarshal(body, result); err != nil {
-			return fmt.Errorf("decode response: %w", err)
-		}
-	}
-
-	return nil
+	return c.doRequestWithURL(ctx, method, u.String(), result)
 }
 
 // buildURL constructs a URL with query parameters from ListOptions.
@@ -126,6 +94,7 @@ func (c *Client) buildURL(path string, opts *ListOptions) (string, error) {
 }
 
 // doRequestWithURL performs an HTTP request using a full URL and decodes the JSON response.
+// This is the common helper function used by both doRequest and direct calls.
 func (c *Client) doRequestWithURL(ctx context.Context, method, fullURL string, result interface{}) error {
 	req, err := http.NewRequestWithContext(ctx, method, fullURL, nil)
 	if err != nil {
