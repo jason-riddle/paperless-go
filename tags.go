@@ -14,12 +14,7 @@ func (c *Client) ListTags(ctx context.Context, opts *ListOptions) (*TagList, err
 
 	var result TagList
 	if err := c.doRequestWithURL(ctx, "GET", fullURL, &result); err != nil {
-		apiErr, ok := err.(*Error)
-		if ok {
-			apiErr.Op = "ListTags"
-			return nil, apiErr
-		}
-		return nil, fmt.Errorf("ListTags: %w", err)
+		return nil, wrapError(err, "ListTags")
 	}
 
 	return &result, nil
@@ -31,12 +26,7 @@ func (c *Client) GetTag(ctx context.Context, id int) (*Tag, error) {
 
 	var result Tag
 	if err := c.doRequest(ctx, "GET", path, &result); err != nil {
-		apiErr, ok := err.(*Error)
-		if ok {
-			apiErr.Op = "GetTag"
-			return nil, apiErr
-		}
-		return nil, fmt.Errorf("GetTag: %w", err)
+		return nil, wrapError(err, "GetTag")
 	}
 
 	return &result, nil

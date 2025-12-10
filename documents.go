@@ -14,12 +14,7 @@ func (c *Client) ListDocuments(ctx context.Context, opts *ListOptions) (*Documen
 
 	var result DocumentList
 	if err := c.doRequestWithURL(ctx, "GET", fullURL, &result); err != nil {
-		apiErr, ok := err.(*Error)
-		if ok {
-			apiErr.Op = "ListDocuments"
-			return nil, apiErr
-		}
-		return nil, fmt.Errorf("ListDocuments: %w", err)
+		return nil, wrapError(err, "ListDocuments")
 	}
 
 	return &result, nil
@@ -31,12 +26,7 @@ func (c *Client) GetDocument(ctx context.Context, id int) (*Document, error) {
 
 	var result Document
 	if err := c.doRequest(ctx, "GET", path, &result); err != nil {
-		apiErr, ok := err.(*Error)
-		if ok {
-			apiErr.Op = "GetDocument"
-			return nil, apiErr
-		}
-		return nil, fmt.Errorf("GetDocument: %w", err)
+		return nil, wrapError(err, "GetDocument")
 	}
 
 	return &result, nil

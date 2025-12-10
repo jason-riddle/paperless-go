@@ -65,6 +65,19 @@ func (c *Client) doRequest(ctx context.Context, method, path string, result inte
 	return c.doRequestWithURL(ctx, method, u.String(), result)
 }
 
+// wrapError wraps an error with an operation name if it's an API error.
+func wrapError(err error, op string) error {
+	if err == nil {
+		return nil
+	}
+	apiErr, ok := err.(*Error)
+	if ok {
+		apiErr.Op = op
+		return apiErr
+	}
+	return fmt.Errorf("%s: %w", op, err)
+}
+
 // buildURL constructs a URL with query parameters from ListOptions.
 func (c *Client) buildURL(path string, opts *ListOptions) (string, error) {
 	u, err := url.Parse(c.baseURL)
