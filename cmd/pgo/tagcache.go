@@ -11,7 +11,11 @@ import (
 	"github.com/jason-riddle/paperless-go"
 )
 
-// TagCache represents cached tag data with timestamp
+// TagCache represents cached tag data with timestamp.
+// This cache stores only tag ID to name mappings for efficient tag name resolution
+// when displaying documents. The 'pgo get tags' command does not use this cache
+// as it needs full Tag objects with all fields (Slug, Color, DocumentCount, etc.),
+// not just the name mapping.
 type TagCache struct {
 	Tags      map[int]string `json:"tags"`
 	FetchedAt time.Time      `json:"fetched_at"`
