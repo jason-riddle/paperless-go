@@ -1,5 +1,7 @@
 # Copilot Instructions for paperless-go
 
+> **Note**: Please read [AGENTS.md](../AGENTS.md) for comprehensive documentation about this project, including project structure, key principles, and development workflow.
+
 ## Code Quality Standards
 
 ### Always Run Before Committing
