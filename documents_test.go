@@ -16,7 +16,7 @@ func TestClient_ListDocuments(t *testing.T) {
 				t.Errorf("path = %v, want /api/documents/", r.URL.Path)
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(DocumentList{
+			_ = json.NewEncoder(w).Encode(DocumentList{
 				Count: 1,
 				Results: []Document{
 					{
@@ -60,7 +60,7 @@ func TestClient_ListDocuments(t *testing.T) {
 				t.Errorf("ordering = %v, want -created", query.Get("ordering"))
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(DocumentList{Count: 0, Results: []Document{}})
+			_ = json.NewEncoder(w).Encode(DocumentList{Count: 0, Results: []Document{}})
 		}))
 		defer server.Close()
 
@@ -117,7 +117,7 @@ func TestClient_GetDocument(t *testing.T) {
 				t.Errorf("path = %v, want /api/documents/1/", r.URL.Path)
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(expectedDoc)
+			_ = json.NewEncoder(w).Encode(expectedDoc)
 		}))
 		defer server.Close()
 
