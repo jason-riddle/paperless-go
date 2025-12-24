@@ -16,7 +16,7 @@ fixtures:
 integration-setup: fixtures
 	mkdir -p testdata/consume
 	cp testdata/fixtures/*.pdf testdata/consume/
-	docker-compose up -d
+	docker compose up -d
 	@echo "Waiting for Paperless-ngx to be ready..."
 	@./scripts/wait-for-paperless.sh
 
@@ -29,7 +29,7 @@ integration-test-full: integration-setup integration-test integration-teardown
 
 ## integration-teardown: Stop and remove Paperless-ngx containers
 integration-teardown:
-	docker-compose down -v
+	docker compose down -v
 
 ## lint: Run all linters
 lint: vet fmt

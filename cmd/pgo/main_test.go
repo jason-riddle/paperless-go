@@ -145,7 +145,40 @@ func TestCLI_GetSpecificDoc(t *testing.T) {
 		t.Skip("Skipping integration test - PAPERLESS_URL and PAPERLESS_TOKEN not set")
 	}
 
-	cmd := exec.Command("./pgo", "get", "docs", "2411")
+	// First, list documents to get a valid ID
+	listCmd := exec.Command("./pgo", "get", "docs")
+	listCmd.Env = append(os.Environ(),
+		"PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"),
+		"PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"),
+	)
+	var listStdout bytes.Buffer
+	listCmd.Stdout = &listStdout
+	listCmd.Stderr = os.Stderr // Capture stderr for debugging
+
+	err := listCmd.Run()
+	if err != nil {
+		t.Fatalf("List docs failed: %v", err)
+	}
+
+	output := listStdout.String()
+	if !strings.Contains(output, "ID: ") {
+		t.Skip("No documents found, skipping GetSpecificDoc test")
+	}
+
+	// Simple parsing to find the first ID
+	start := strings.Index(output, "ID: ") + 4
+	end := strings.Index(output[start:], "\n")
+	if end == -1 {
+		// Try end of string if no newline
+		end = len(output[start:])
+	}
+	
+	docID := strings.TrimSpace(output[start : start+end])
+	if docID == "" {
+		t.Skip("Could not parse valid document ID")
+	}
+
+	cmd := exec.Command("./pgo", "get", "docs", docID)
 	cmd.Env = append(os.Environ(),
 		"PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"),
 		"PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"),
@@ -155,14 +188,14 @@ func TestCLI_GetSpecificDoc(t *testing.T) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		t.Fatalf("CLI command failed: %v", err)
 	}
 
-	output := stdout.String()
-	if !strings.Contains(output, "Document 2411") {
-		t.Errorf("Expected output to contain 'Document 2411', got: %s", output)
+	output = stdout.String()
+	if !strings.Contains(output, "Document "+docID) {
+		t.Errorf("Expected output to contain 'Document %s', got: %s", docID, output)
 	}
 
 	if !strings.Contains(output, "Title:") {
@@ -176,7 +209,39 @@ func TestCLI_GetSpecificTag(t *testing.T) {
 		t.Skip("Skipping integration test - PAPERLESS_URL and PAPERLESS_TOKEN not set")
 	}
 
-	cmd := exec.Command("./pgo", "get", "tags", "2")
+	// First, list tags to get a valid ID
+	listCmd := exec.Command("./pgo", "get", "tags")
+	listCmd.Env = append(os.Environ(),
+		"PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"),
+		"PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"),
+	)
+	var listStdout bytes.Buffer
+	listCmd.Stdout = &listStdout
+	listCmd.Stderr = os.Stderr
+
+	err := listCmd.Run()
+	if err != nil {
+		t.Fatalf("List tags failed: %v", err)
+	}
+
+	output := listStdout.String()
+	if !strings.Contains(output, "ID: ") {
+		t.Skip("No tags found, skipping GetSpecificTag test")
+	}
+
+	// Simple parsing to find the first ID
+	start := strings.Index(output, "ID: ") + 4
+	end := strings.Index(output[start:], "\n")
+	if end == -1 {
+		end = len(output[start:])
+	}
+	
+	tagID := strings.TrimSpace(output[start : start+end])
+	if tagID == "" {
+		t.Skip("Could not parse valid tag ID")
+	}
+
+	cmd := exec.Command("./pgo", "get", "tags", tagID)
 	cmd.Env = append(os.Environ(),
 		"PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"),
 		"PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"),
@@ -186,14 +251,14 @@ func TestCLI_GetSpecificTag(t *testing.T) {
 	cmd.Stdout = &stdout
 	cmd.Stderr = os.Stderr
 
-	err := cmd.Run()
+	err = cmd.Run()
 	if err != nil {
 		t.Fatalf("CLI command failed: %v", err)
 	}
 
-	output := stdout.String()
-	if !strings.Contains(output, "Tag 2") {
-		t.Errorf("Expected output to contain 'Tag 2', got: %s", output)
+	output = stdout.String()
+	if !strings.Contains(output, "Tag "+tagID) {
+		t.Errorf("Expected output to contain 'Tag %s', got: %s", tagID, output)
 	}
 
 	if !strings.Contains(output, "Name:") {

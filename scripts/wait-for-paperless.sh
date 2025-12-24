@@ -4,7 +4,7 @@
 set -e
 
 PAPERLESS_URL="${PAPERLESS_URL:-http://localhost:8000}"
-MAX_ATTEMPTS=60
+MAX_ATTEMPTS=150
 ATTEMPT=0
 
 echo "Waiting for Paperless-ngx at $PAPERLESS_URL to be ready..."

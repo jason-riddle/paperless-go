@@ -2,7 +2,11 @@
 testdata/fixtures/
 testdata/consume/
 
-# Binaries for programs and plugins
+# Binaries
+
+cmd/pgo/pgo
+
+ for programs and plugins
 *.exe
 *.exe~
 *.dll
