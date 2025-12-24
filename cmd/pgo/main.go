@@ -22,12 +22,13 @@ func run() error {
 	// Parse command line flags
 	baseURL := flag.String("url", os.Getenv("PAPERLESS_URL"), "Paperless instance URL (default: $PAPERLESS_URL)")
 	token := flag.String("token", os.Getenv("PAPERLESS_TOKEN"), "API authentication token (default: $PAPERLESS_TOKEN)")
-	forceRefresh := flag.Bool("force-refresh", false, "Force refresh tags cache, bypassing any cached data")
-	inMemoryCacheFlag := flag.Bool("memory", false, "Use in-memory cache only, do not write to disk")
+	forceRefresh := flag.Bool("force-refresh", false, "Force refresh caches, bypassing any cached data")
+	inMemoryCacheFlag := flag.Bool("memory", false, "Use in-memory cache only for tags and docs, do not write to disk")
 	flag.Parse()
 
-	// Set the global in-memory cache flag
+	// Set the global in-memory cache flags for both tag and doc caches
 	useInMemoryCache = *inMemoryCacheFlag
+	useInMemoryDocCache = *inMemoryCacheFlag
 
 	// Parse command
 	args := flag.Args()
