@@ -105,9 +105,9 @@ func TestClient_GetDocument(t *testing.T) {
 			ID:               1,
 			Title:            "Test Document",
 			Content:          "This is test content",
-			Created:          time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC),
-			Modified:         time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC),
-			Added:            time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC),
+			Created:          Date(time.Date(2024, 1, 1, 0, 0, 0, 0, time.UTC)),
+			Modified:         Date(time.Date(2024, 1, 2, 0, 0, 0, 0, time.UTC)),
+			Added:            Date(time.Date(2024, 1, 3, 0, 0, 0, 0, time.UTC)),
 			OriginalFileName: "test.pdf",
 			Tags:             []int{1, 2, 3},
 		}
