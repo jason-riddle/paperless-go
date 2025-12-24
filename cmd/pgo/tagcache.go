@@ -24,6 +24,12 @@ type TagCache struct {
 // DefaultCacheTTL is the default time-to-live for cached tags (12 hours)
 const DefaultCacheTTL = 12 * time.Hour
 
+// inMemoryCache holds the in-memory cache state
+var inMemoryCache *TagCache
+
+// useInMemoryCache tracks whether to use in-memory cache only
+var useInMemoryCache bool
+
 // getCacheDir returns the cache directory path, preferring XDG_CACHE_HOME
 func getCacheDir() (string, error) {
 	// Try XDG_CACHE_HOME first
@@ -49,9 +55,14 @@ func getCacheFilePath() (string, error) {
 	return filepath.Join(dir, "tags.json"), nil
 }
 
-// loadTagCache loads cached tags from disk
+// loadTagCache loads cached tags from disk or in-memory cache
 // Returns nil if cache doesn't exist or is invalid (non-fatal)
 func loadTagCache() (*TagCache, error) {
+	// If using in-memory cache, return it directly
+	if useInMemoryCache {
+		return inMemoryCache, nil
+	}
+
 	cachePath, err := getCacheFilePath()
 	if err != nil {
 		return nil, err
@@ -75,18 +86,29 @@ func loadTagCache() (*TagCache, error) {
 	return &cache, nil
 }
 
-// saveTagCache saves tags to disk cache
+// saveTagCache saves tags to disk cache or in-memory cache
 // Errors are non-fatal - logged but not returned
+// If filesystem errors occur, automatically falls back to in-memory cache
 func saveTagCache(tags map[int]string) {
-	cachePath, err := getCacheFilePath()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Warning: Could not determine cache path: %v\n", err)
-		return
-	}
-
 	cache := TagCache{
 		Tags:      tags,
 		FetchedAt: time.Now(),
+	}
+
+	// Always update in-memory cache
+	inMemoryCache = &cache
+
+	// If using in-memory cache only, skip disk write
+	if useInMemoryCache {
+		return
+	}
+
+	cachePath, err := getCacheFilePath()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Warning: Could not determine cache path: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Info: Using in-memory cache as fallback\n")
+		useInMemoryCache = true
+		return
 	}
 
 	data, err := json.MarshalIndent(cache, "", "  ")
@@ -99,12 +121,16 @@ func saveTagCache(tags map[int]string) {
 	cacheDir := filepath.Dir(cachePath)
 	if err := os.MkdirAll(cacheDir, 0755); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: Could not create cache directory: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Info: Using in-memory cache as fallback\n")
+		useInMemoryCache = true
 		return
 	}
 
 	// Write cache file
 	if err := os.WriteFile(cachePath, data, 0644); err != nil {
 		fmt.Fprintf(os.Stderr, "Warning: Could not write cache file: %v\n", err)
+		fmt.Fprintf(os.Stderr, "Info: Using in-memory cache as fallback\n")
+		useInMemoryCache = true
 		return
 	}
 }

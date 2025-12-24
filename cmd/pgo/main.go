@@ -23,7 +23,11 @@ func run() error {
 	baseURL := flag.String("url", os.Getenv("PAPERLESS_URL"), "Paperless instance URL (default: $PAPERLESS_URL)")
 	token := flag.String("token", os.Getenv("PAPERLESS_TOKEN"), "API authentication token (default: $PAPERLESS_TOKEN)")
 	forceRefresh := flag.Bool("force-refresh", false, "Force refresh tags cache, bypassing any cached data")
+	inMemoryCacheFlag := flag.Bool("inmemory-cache", false, "Use in-memory cache only, do not write to disk")
 	flag.Parse()
+
+	// Set the global in-memory cache flag
+	useInMemoryCache = *inMemoryCacheFlag
 
 	// Check for required arguments
 	if *baseURL == "" {

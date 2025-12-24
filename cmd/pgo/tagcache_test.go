@@ -316,6 +316,18 @@ func TestGetTagNamesWithCache_Integration(t *testing.T) {
 	// This test verifies the complete cache flow with a mock HTTP server
 	// Using stdlib httptest for mocking
 
+	// Save and restore global state
+	origUseInMemory := useInMemoryCache
+	origInMemoryCache := inMemoryCache
+	defer func() {
+		useInMemoryCache = origUseInMemory
+		inMemoryCache = origInMemoryCache
+	}()
+
+	// Reset to use disk cache for this test
+	useInMemoryCache = false
+	inMemoryCache = nil
+
 	// Create temp directory for testing
 	tmpDir := t.TempDir()
 
@@ -386,6 +398,18 @@ func TestGetTagNamesWithCache_Integration(t *testing.T) {
 	})
 
 	t.Run("stale cache is considered invalid", func(t *testing.T) {
+		// Save and restore global state
+		origUseInMemory := useInMemoryCache
+		origInMemoryCache := inMemoryCache
+		defer func() {
+			useInMemoryCache = origUseInMemory
+			inMemoryCache = origInMemoryCache
+		}()
+
+		// Reset to use disk cache
+		useInMemoryCache = false
+		inMemoryCache = nil
+
 		// Create a stale cache by manually setting old timestamp
 		staleCache := TagCache{
 			Tags: map[int]string{
@@ -412,4 +436,204 @@ func TestGetTagNamesWithCache_Integration(t *testing.T) {
 			t.Error("Stale cache should be considered stale")
 		}
 	})
+}
+
+func TestInMemoryCache(t *testing.T) {
+	// Save original state
+	origUseInMemory := useInMemoryCache
+	origInMemoryCache := inMemoryCache
+	defer func() {
+		useInMemoryCache = origUseInMemory
+		inMemoryCache = origInMemoryCache
+	}()
+
+	t.Run("explicit inmemory-cache flag", func(t *testing.T) {
+		// Reset state
+		useInMemoryCache = true
+		inMemoryCache = nil
+
+		testTags := map[int]string{
+			1: "Test Tag 1",
+			2: "Test Tag 2",
+		}
+
+		// Save to in-memory cache
+		saveTagCache(testTags)
+
+		// Verify in-memory cache was set
+		if inMemoryCache == nil {
+			t.Fatal("in-memory cache should be set")
+		}
+
+		if len(inMemoryCache.Tags) != len(testTags) {
+			t.Errorf("len(inMemoryCache.Tags) = %d, want %d", len(inMemoryCache.Tags), len(testTags))
+		}
+
+		// Load from in-memory cache
+		cache, err := loadTagCache()
+		if err != nil {
+			t.Fatalf("loadTagCache failed: %v", err)
+		}
+
+		if cache == nil {
+			t.Fatal("cache should not be nil")
+		}
+
+		for id, name := range testTags {
+			if cache.Tags[id] != name {
+				t.Errorf("cache.Tags[%d] = %v, want %v", id, cache.Tags[id], name)
+			}
+		}
+	})
+
+	t.Run("automatic fallback on permission error", func(t *testing.T) {
+		// Reset state
+		useInMemoryCache = false
+		inMemoryCache = nil
+
+		// Save original env and set to unwritable path
+		orig := os.Getenv("XDG_CACHE_HOME")
+		defer func() {
+			if orig != "" {
+				os.Setenv("XDG_CACHE_HOME", orig)
+			} else {
+				os.Unsetenv("XDG_CACHE_HOME")
+			}
+		}()
+
+		os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
+
+		testTags := map[int]string{
+			1: "Fallback Tag",
+		}
+
+		// This should fail to write to disk and set useInMemoryCache = true
+		saveTagCache(testTags)
+
+		// Verify in-memory cache was set
+		if inMemoryCache == nil {
+			t.Fatal("in-memory cache should be set as fallback")
+		}
+
+		// Verify useInMemoryCache was automatically set
+		if !useInMemoryCache {
+			t.Error("useInMemoryCache should be true after permission error")
+		}
+
+		// Verify data is in in-memory cache
+		if len(inMemoryCache.Tags) != len(testTags) {
+			t.Errorf("len(inMemoryCache.Tags) = %d, want %d", len(inMemoryCache.Tags), len(testTags))
+		}
+
+		// Load from in-memory cache (should work even though disk failed)
+		cache, err := loadTagCache()
+		if err != nil {
+			t.Fatalf("loadTagCache failed: %v", err)
+		}
+
+		if cache == nil {
+			t.Fatal("cache should not be nil")
+		}
+
+		for id, name := range testTags {
+			if cache.Tags[id] != name {
+				t.Errorf("cache.Tags[%d] = %v, want %v", id, cache.Tags[id], name)
+			}
+		}
+	})
+
+	t.Run("in-memory cache preserves data across saves", func(t *testing.T) {
+		// Reset state
+		useInMemoryCache = true
+		inMemoryCache = nil
+
+		testTags1 := map[int]string{1: "Tag 1"}
+		saveTagCache(testTags1)
+
+		cache1, _ := loadTagCache()
+		if cache1 == nil || cache1.Tags[1] != "Tag 1" {
+			t.Fatal("First save failed")
+		}
+
+		testTags2 := map[int]string{2: "Tag 2"}
+		saveTagCache(testTags2)
+
+		cache2, _ := loadTagCache()
+		if cache2 == nil || cache2.Tags[2] != "Tag 2" {
+			t.Fatal("Second save failed")
+		}
+
+		// Second save should have replaced first
+		if cache2.Tags[1] == "Tag 1" {
+			t.Error("In-memory cache should be replaced, not merged")
+		}
+	})
+}
+
+func TestInMemoryCacheFallbackIntegration(t *testing.T) {
+	// This test verifies that commands work even with filesystem errors
+
+	// Save original state
+	origUseInMemory := useInMemoryCache
+	origInMemoryCache := inMemoryCache
+	defer func() {
+		useInMemoryCache = origUseInMemory
+		inMemoryCache = origInMemoryCache
+	}()
+
+	// Reset state
+	useInMemoryCache = false
+	inMemoryCache = nil
+
+	// Set unwritable cache path
+	orig := os.Getenv("XDG_CACHE_HOME")
+	defer func() {
+		if orig != "" {
+			os.Setenv("XDG_CACHE_HOME", orig)
+		} else {
+			os.Unsetenv("XDG_CACHE_HOME")
+		}
+	}()
+	os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
+
+	// First save should fail and enable in-memory cache
+	testTags := map[int]string{
+		1: "Important",
+		2: "Work",
+	}
+	saveTagCache(testTags)
+
+	// Verify fallback was enabled
+	if !useInMemoryCache {
+		t.Error("Should have enabled in-memory cache after permission error")
+	}
+
+	// Verify data is accessible
+	cache, err := loadTagCache()
+	if err != nil {
+		t.Fatalf("loadTagCache failed: %v", err)
+	}
+
+	if cache == nil {
+		t.Fatal("cache should not be nil")
+	}
+
+	if cache.Tags[1] != "Important" || cache.Tags[2] != "Work" {
+		t.Error("In-memory cache data incorrect")
+	}
+
+	// Second save should use in-memory cache (no more errors)
+	testTags2 := map[int]string{
+		3: "Personal",
+	}
+	saveTagCache(testTags2)
+
+	cache2, err := loadTagCache()
+	if err != nil {
+		t.Fatalf("Second loadTagCache failed: %v", err)
+	}
+
+	if cache2 == nil || cache2.Tags[3] != "Personal" {
+		t.Error("Second in-memory cache save/load failed")
+	}
 }
