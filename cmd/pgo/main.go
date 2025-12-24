@@ -66,7 +66,7 @@ func run() error {
 	for _, doc := range docs.Results {
 		fmt.Printf("ID: %d\n", doc.ID)
 		fmt.Printf("Title: %s\n", doc.Title)
-		fmt.Printf("Created: %s\n", doc.Created.Format(time.RFC3339))
+		fmt.Printf("Created: %s\n", doc.Created.Time().Format(time.RFC3339))
 		fmt.Printf("Tags: %v\n", doc.Tags)
 		fmt.Println("---")
 	}
