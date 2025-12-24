@@ -22,17 +22,18 @@ func run() error {
 	// Parse command line flags
 	baseURL := flag.String("url", os.Getenv("PAPERLESS_URL"), "Paperless instance URL (default: $PAPERLESS_URL)")
 	token := flag.String("token", os.Getenv("PAPERLESS_TOKEN"), "API authentication token (default: $PAPERLESS_TOKEN)")
-	forceRefresh := flag.Bool("force-refresh", false, "Force refresh tags cache, bypassing any cached data")
-	inMemoryCacheFlag := flag.Bool("memory", false, "Use in-memory cache only, do not write to disk")
+	forceRefresh := flag.Bool("force-refresh", false, "Force refresh caches, bypassing any cached data")
+	inMemoryCacheFlag := flag.Bool("memory", false, "Use in-memory cache only for tags and docs, do not write to disk")
 	flag.Parse()
 
-	// Set the global in-memory cache flag
+	// Set the global in-memory cache flags for both tag and doc caches
 	useInMemoryCache = *inMemoryCacheFlag
+	useInMemoryDocCache = *inMemoryCacheFlag
 
 	// Parse command
 	args := flag.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  tagcache - Print the cache file path")
+		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  tagcache - Print the tag cache file path\n  doccache - Print the doc cache file path")
 	}
 
 	command := args[0]
@@ -42,6 +43,16 @@ func run() error {
 		cachePath, err := getCacheFilePath()
 		if err != nil {
 			return fmt.Errorf("failed to get cache file path: %w", err)
+		}
+		fmt.Println(cachePath)
+		return nil
+	}
+
+	// Handle doccache command (no auth required)
+	if command == "doccache" {
+		cachePath, err := getDocCacheFilePath()
+		if err != nil {
+			return fmt.Errorf("failed to get doc cache file path: %w", err)
 		}
 		fmt.Println(cachePath)
 		return nil
