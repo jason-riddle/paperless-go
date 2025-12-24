@@ -29,7 +29,25 @@ func run() error {
 	// Set the global in-memory cache flag
 	useInMemoryCache = *inMemoryCacheFlag
 
-	// Check for required arguments
+	// Parse command
+	args := flag.Args()
+	if len(args) == 0 {
+		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  tagcache - Print the cache file path")
+	}
+
+	command := args[0]
+
+	// Handle tagcache command (no auth required)
+	if command == "tagcache" {
+		cachePath, err := getCacheFilePath()
+		if err != nil {
+			return fmt.Errorf("failed to get cache file path: %w", err)
+		}
+		fmt.Println(cachePath)
+		return nil
+	}
+
+	// Check for required arguments for API commands
 	if *baseURL == "" {
 		return fmt.Errorf("paperless URL is required (use -url flag or PAPERLESS_URL env var)")
 	}
@@ -37,13 +55,6 @@ func run() error {
 		return fmt.Errorf("API token is required (use -token flag or PAPERLESS_TOKEN env var)")
 	}
 
-	// Parse command
-	args := flag.Args()
-	if len(args) == 0 {
-		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag")
-	}
-
-	command := args[0]
 	if command != "get" {
 		return fmt.Errorf("unknown command: %s", command)
 	}
