@@ -4,7 +4,11 @@
 *.dll
 *.so
 *.dylib
+/app
+/main
 /pgo
+cmd/pgo/app
+cmd/pgo/main
 cmd/pgo/pgo
 
 # Test binary, built with `go test -c`
