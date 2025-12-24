@@ -11,38 +11,6 @@ import (
 	"github.com/jason-riddle/paperless-go"
 )
 
-// getTagNames fetches all tags and returns a map from tag ID to tag name
-func getTagNames(ctx context.Context, client *paperless.Client) (map[int]string, error) {
-	tagNames := make(map[int]string)
-
-	// Fetch all pages of tags
-	opts := &paperless.ListOptions{PageSize: 100} // Large page size to minimize requests
-	for {
-		tags, err := client.ListTags(ctx, opts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch tags: %w", err)
-		}
-
-		// Add tags from this page
-		for _, tag := range tags.Results {
-			tagNames[tag.ID] = tag.Name
-		}
-
-		// Check if there are more pages
-		if tags.Next == nil || *tags.Next == "" {
-			break
-		}
-
-		// For simplicity, just increase page number (this assumes consistent ordering)
-		if opts.Page == 0 {
-			opts.Page = 1
-		}
-		opts.Page++
-	}
-
-	return tagNames, nil
-}
-
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
