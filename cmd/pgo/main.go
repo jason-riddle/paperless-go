@@ -34,7 +34,7 @@ func run() error {
 	// Parse command
 	args := flag.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents")
+		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get tags - List tags")
 	}
 
 	command := args[0]
@@ -43,32 +43,52 @@ func run() error {
 	}
 
 	if len(args) < 2 {
-		return fmt.Errorf("usage: pgo get <resource>\nAvailable resources:\n  docs - List documents")
+		return fmt.Errorf("usage: pgo get <resource>\nAvailable resources:\n  docs - List documents\n  tags - List tags")
 	}
 
 	resource := args[1]
-	if resource != "docs" {
+	if resource != "docs" && resource != "tags" {
 		return fmt.Errorf("unknown resource: %s", resource)
 	}
 
-	// Create client and fetch documents
+	// Create client
 	client := paperless.NewClient(*baseURL, *token)
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	docs, err := client.ListDocuments(ctx, nil)
-	if err != nil {
-		return fmt.Errorf("failed to list documents: %w", err)
-	}
+	if resource == "docs" {
+		// Fetch documents
+		docs, err := client.ListDocuments(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("failed to list documents: %w", err)
+		}
 
-	// Display results
-	fmt.Printf("Found %d documents\n\n", docs.Count)
-	for _, doc := range docs.Results {
-		fmt.Printf("ID: %d\n", doc.ID)
-		fmt.Printf("Title: %s\n", doc.Title)
-		fmt.Printf("Created: %s\n", doc.Created.Time().Format(time.RFC3339))
-		fmt.Printf("Tags: %v\n", doc.Tags)
-		fmt.Println("---")
+		// Display results
+		fmt.Printf("Found %d documents\n\n", docs.Count)
+		for _, doc := range docs.Results {
+			fmt.Printf("ID: %d\n", doc.ID)
+			fmt.Printf("Title: %s\n", doc.Title)
+			fmt.Printf("Created: %s\n", doc.Created.Time().Format(time.RFC3339))
+			fmt.Printf("Tags: %v\n", doc.Tags)
+			fmt.Println("---")
+		}
+	} else if resource == "tags" {
+		// Fetch tags
+		tags, err := client.ListTags(ctx, nil)
+		if err != nil {
+			return fmt.Errorf("failed to list tags: %w", err)
+		}
+
+		// Display results
+		fmt.Printf("Found %d tags\n\n", tags.Count)
+		for _, tag := range tags.Results {
+			fmt.Printf("ID: %d\n", tag.ID)
+			fmt.Printf("Name: %s\n", tag.Name)
+			fmt.Printf("Slug: %s\n", tag.Slug)
+			fmt.Printf("Color: %s\n", tag.Color)
+			fmt.Printf("Document Count: %d\n", tag.DocumentCount)
+			fmt.Println("---")
+		}
 	}
 
 	return nil
