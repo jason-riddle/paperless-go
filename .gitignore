@@ -5,6 +5,7 @@
 *.so
 *.dylib
 /pgo
+cmd/pgo/pgo
 
 # Test binary, built with `go test -c`
 *.test
