@@ -54,6 +54,7 @@ func run() error {
 	// Parse command line flags
 	baseURL := flag.String("url", os.Getenv("PAPERLESS_URL"), "Paperless instance URL (default: $PAPERLESS_URL)")
 	token := flag.String("token", os.Getenv("PAPERLESS_TOKEN"), "API authentication token (default: $PAPERLESS_TOKEN)")
+	forceRefresh := flag.Bool("force-refresh", false, "Force refresh tags cache, bypassing any cached data")
 	flag.Parse()
 
 	// Check for required arguments
@@ -108,8 +109,8 @@ func run() error {
 				return fmt.Errorf("failed to get document %d: %w", id, err)
 			}
 
-			// Fetch tag names for resolution
-			tagNames, err := getTagNames(ctx, client)
+			// Fetch tag names for resolution (with caching)
+			tagNames, err := getTagNamesWithCache(ctx, client, *forceRefresh, DefaultCacheTTL)
 			if err != nil {
 				// If tag fetching fails, continue but warn
 				fmt.Fprintf(os.Stderr, "Warning: Could not fetch tags for name resolution: %v\n", err)
@@ -132,8 +133,8 @@ func run() error {
 			fmt.Printf("Tags: [%s]\n", strings.Join(tagNamesList, ", "))
 			fmt.Printf("Content: %s\n", doc.Content)
 		} else {
-			// Fetch tag names for resolution
-			tagNames, err := getTagNames(ctx, client)
+			// Fetch tag names for resolution (with caching)
+			tagNames, err := getTagNamesWithCache(ctx, client, *forceRefresh, DefaultCacheTTL)
 			if err != nil {
 				// If tag fetching fails, continue but warn
 				fmt.Fprintf(os.Stderr, "Warning: Could not fetch tags for name resolution: %v\n", err)
