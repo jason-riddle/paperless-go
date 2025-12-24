@@ -13,6 +13,7 @@ services:
     volumes:
       - paperless-data:/usr/src/paperless/data
       - paperless-media:/usr/src/paperless/media
+      - ./testdata/consume:/usr/src/paperless/consume
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/api/"]
       interval: 10s

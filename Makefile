@@ -7,8 +7,15 @@
 test:
 	go test -v -race -cover ./...
 
+## fixtures: Download sample PDF fixtures
+fixtures:
+	mkdir -p testdata/fixtures
+	[ -f testdata/fixtures/sample.pdf ] || curl -s -L https://www.princexml.com/samples/invoice-colorful/invoicesample.pdf -o testdata/fixtures/sample.pdf
+
 ## integration-setup: Start Paperless-ngx for integration testing
-integration-setup:
+integration-setup: fixtures
+	mkdir -p testdata/consume
+	cp testdata/fixtures/*.pdf testdata/consume/
 	docker-compose up -d
 	@echo "Waiting for Paperless-ngx to be ready..."
 	@./scripts/wait-for-paperless.sh
