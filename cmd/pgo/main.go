@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/jason-riddle/paperless-go"
@@ -114,12 +115,12 @@ func run() error {
 			tagNamesList := make([]string, len(doc.Tags))
 			for i, tagID := range doc.Tags {
 				if name, ok := tagNames[tagID]; ok {
-					tagNamesList[i] = name
+					tagNamesList[i] = fmt.Sprintf("\"%s\"", name)
 				} else {
-					tagNamesList[i] = fmt.Sprintf("unknown(%d)", tagID)
+					tagNamesList[i] = fmt.Sprintf("\"unknown(%d)\"", tagID)
 				}
 			}
-			fmt.Printf("Tags: %v\n", tagNamesList)
+			fmt.Printf("Tags: [%s]\n", strings.Join(tagNamesList, ", "))
 			fmt.Println("---")
 		}
 	} else if resource == "tags" {
