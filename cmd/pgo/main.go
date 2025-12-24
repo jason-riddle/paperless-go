@@ -32,7 +32,7 @@ func run() error {
 	// Parse command
 	args := flag.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  tagcache - Print the cache file path")
+		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  tagcache - Print the tag cache file path\n  doccache - Print the doc cache file path")
 	}
 
 	command := args[0]
@@ -42,6 +42,16 @@ func run() error {
 		cachePath, err := getCacheFilePath()
 		if err != nil {
 			return fmt.Errorf("failed to get cache file path: %w", err)
+		}
+		fmt.Println(cachePath)
+		return nil
+	}
+
+	// Handle doccache command (no auth required)
+	if command == "doccache" {
+		cachePath, err := getDocCacheFilePath()
+		if err != nil {
+			return fmt.Errorf("failed to get doc cache file path: %w", err)
 		}
 		fmt.Println(cachePath)
 		return nil
