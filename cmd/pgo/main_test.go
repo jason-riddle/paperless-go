@@ -222,3 +222,50 @@ func TestCLI_InvalidID(t *testing.T) {
 		t.Errorf("Expected 'invalid ID format' in error output, got: %s", errorOutput)
 	}
 }
+
+func TestCLI_TagCache(t *testing.T) {
+	cmd := exec.Command("./pgo", "tagcache")
+	// No env vars needed - tagcache doesn't require auth
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		t.Fatalf("CLI command failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	output := stdout.String()
+	// Should print a path ending with tags.json
+	if !strings.HasSuffix(strings.TrimSpace(output), "tags.json") {
+		t.Errorf("Expected output to end with 'tags.json', got: %s", output)
+	}
+
+	// Should contain paperless-go in the path
+	if !strings.Contains(output, "paperless-go") {
+		t.Errorf("Expected output to contain 'paperless-go', got: %s", output)
+	}
+}
+
+func TestCLI_TagCache_WithCustomXDG(t *testing.T) {
+	cmd := exec.Command("./pgo", "tagcache")
+	cmd.Env = append(os.Environ(), "XDG_CACHE_HOME=/tmp/test-cache")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		t.Fatalf("CLI command failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	output := strings.TrimSpace(stdout.String())
+	expected := "/tmp/test-cache/paperless-go/tags.json"
+	if output != expected {
+		t.Errorf("Expected output to be %s, got: %s", expected, output)
+	}
+}

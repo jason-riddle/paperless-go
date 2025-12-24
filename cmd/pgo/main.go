@@ -11,38 +11,6 @@ import (
 	"github.com/jason-riddle/paperless-go"
 )
 
-// getTagNames fetches all tags and returns a map from tag ID to tag name
-func getTagNames(ctx context.Context, client *paperless.Client) (map[int]string, error) {
-	tagNames := make(map[int]string)
-
-	// Fetch all pages of tags
-	opts := &paperless.ListOptions{PageSize: 100} // Large page size to minimize requests
-	for {
-		tags, err := client.ListTags(ctx, opts)
-		if err != nil {
-			return nil, fmt.Errorf("failed to fetch tags: %w", err)
-		}
-
-		// Add tags from this page
-		for _, tag := range tags.Results {
-			tagNames[tag.ID] = tag.Name
-		}
-
-		// Check if there are more pages
-		if tags.Next == nil || *tags.Next == "" {
-			break
-		}
-
-		// For simplicity, just increase page number (this assumes consistent ordering)
-		if opts.Page == 0 {
-			opts.Page = 1
-		}
-		opts.Page++
-	}
-
-	return tagNames, nil
-}
-
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -54,9 +22,32 @@ func run() error {
 	// Parse command line flags
 	baseURL := flag.String("url", os.Getenv("PAPERLESS_URL"), "Paperless instance URL (default: $PAPERLESS_URL)")
 	token := flag.String("token", os.Getenv("PAPERLESS_TOKEN"), "API authentication token (default: $PAPERLESS_TOKEN)")
+	forceRefresh := flag.Bool("force-refresh", false, "Force refresh tags cache, bypassing any cached data")
+	inMemoryCacheFlag := flag.Bool("memory", false, "Use in-memory cache only, do not write to disk")
 	flag.Parse()
 
-	// Check for required arguments
+	// Set the global in-memory cache flag
+	useInMemoryCache = *inMemoryCacheFlag
+
+	// Parse command
+	args := flag.Args()
+	if len(args) == 0 {
+		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  tagcache - Print the cache file path")
+	}
+
+	command := args[0]
+
+	// Handle tagcache command (no auth required)
+	if command == "tagcache" {
+		cachePath, err := getCacheFilePath()
+		if err != nil {
+			return fmt.Errorf("failed to get cache file path: %w", err)
+		}
+		fmt.Println(cachePath)
+		return nil
+	}
+
+	// Check for required arguments for API commands
 	if *baseURL == "" {
 		return fmt.Errorf("paperless URL is required (use -url flag or PAPERLESS_URL env var)")
 	}
@@ -64,13 +55,6 @@ func run() error {
 		return fmt.Errorf("API token is required (use -token flag or PAPERLESS_TOKEN env var)")
 	}
 
-	// Parse command
-	args := flag.Args()
-	if len(args) == 0 {
-		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag")
-	}
-
-	command := args[0]
 	if command != "get" {
 		return fmt.Errorf("unknown command: %s", command)
 	}
@@ -108,8 +92,8 @@ func run() error {
 				return fmt.Errorf("failed to get document %d: %w", id, err)
 			}
 
-			// Fetch tag names for resolution
-			tagNames, err := getTagNames(ctx, client)
+			// Fetch tag names for resolution (with caching)
+			tagNames, err := getTagNamesWithCache(ctx, client, *forceRefresh, DefaultCacheTTL)
 			if err != nil {
 				// If tag fetching fails, continue but warn
 				fmt.Fprintf(os.Stderr, "Warning: Could not fetch tags for name resolution: %v\n", err)
@@ -132,8 +116,8 @@ func run() error {
 			fmt.Printf("Tags: [%s]\n", strings.Join(tagNamesList, ", "))
 			fmt.Printf("Content: %s\n", doc.Content)
 		} else {
-			// Fetch tag names for resolution
-			tagNames, err := getTagNames(ctx, client)
+			// Fetch tag names for resolution (with caching)
+			tagNames, err := getTagNamesWithCache(ctx, client, *forceRefresh, DefaultCacheTTL)
 			if err != nil {
 				// If tag fetching fails, continue but warn
 				fmt.Fprintf(os.Stderr, "Warning: Could not fetch tags for name resolution: %v\n", err)
