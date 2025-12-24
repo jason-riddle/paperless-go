@@ -74,6 +74,7 @@ The `pgo` CLI tool provides command-line access to Paperless-ngx:
 - `pgo get docs <id>` - Get a specific document by ID
 - `pgo get tags` - List all tags
 - `pgo get tags <id>` - Get a specific tag by ID
+- `pgo tagcache` - Print the cache file path (no authentication required)
 
 Document output includes tag names (not just IDs) for better readability.
 
@@ -82,7 +83,7 @@ Document output includes tag names (not just IDs) for better readability.
 - `-url` - Paperless instance URL (default: `$PAPERLESS_URL`)
 - `-token` - API authentication token (default: `$PAPERLESS_TOKEN`)
 - `-force-refresh` - Force refresh tags cache, bypassing any cached data
-- `-inmemory-cache` - Use in-memory cache only, do not write to disk
+- `-memory` - Use in-memory cache only, do not write to disk
 
 ### Tag Caching
 
@@ -92,8 +93,9 @@ The CLI includes a tag cache to reduce API calls when fetching tags for document
 - **TTL**: 12 hours (tags are auto-refreshed when stale)
 - **Scope**: Cache is used by `pgo get docs` commands for tag name resolution
 - **In-Memory Fallback**: If filesystem permissions prevent cache writes, the CLI automatically falls back to an in-memory cache that persists for the duration of the command
-- **Explicit In-Memory Mode**: Use `-inmemory-cache` flag to skip disk caching entirely
+- **Explicit In-Memory Mode**: Use `-memory` flag to skip disk caching entirely
 - **Force Refresh**: Use `-force-refresh` flag to bypass cache and fetch fresh data
+- **Cache Inspection**: Use `pgo tagcache` command to print the full path to the cache file
 
 The cache ensures that:
 1. Commands work even with filesystem permission issues (automatic in-memory fallback)

@@ -447,7 +447,7 @@ func TestInMemoryCache(t *testing.T) {
 		inMemoryCache = origInMemoryCache
 	}()
 
-	t.Run("explicit inmemory-cache flag", func(t *testing.T) {
+	t.Run("explicit -memory flag", func(t *testing.T) {
 		// Reset state
 		useInMemoryCache = true
 		inMemoryCache = nil
