@@ -25,6 +25,9 @@ type TagCache struct {
 const DefaultCacheTTL = 12 * time.Hour
 
 // inMemoryCache holds the in-memory cache state
+// Note: These global variables are safe for CLI usage as each invocation
+// runs in a separate process. They are not safe for concurrent use in
+// long-running server applications.
 var inMemoryCache *TagCache
 
 // useInMemoryCache tracks whether to use in-memory cache only
@@ -95,11 +98,10 @@ func saveTagCache(tags map[int]string) {
 		FetchedAt: time.Now(),
 	}
 
-	// Always update in-memory cache
-	inMemoryCache = &cache
-
 	// If using in-memory cache only, skip disk write
 	if useInMemoryCache {
+		// Update in-memory cache
+		inMemoryCache = &cache
 		return
 	}
 
@@ -108,6 +110,7 @@ func saveTagCache(tags map[int]string) {
 		fmt.Fprintf(os.Stderr, "Warning: Could not determine cache path: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Info: Using in-memory cache as fallback\n")
 		useInMemoryCache = true
+		inMemoryCache = &cache
 		return
 	}
 
@@ -123,6 +126,7 @@ func saveTagCache(tags map[int]string) {
 		fmt.Fprintf(os.Stderr, "Warning: Could not create cache directory: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Info: Using in-memory cache as fallback\n")
 		useInMemoryCache = true
+		inMemoryCache = &cache
 		return
 	}
 
@@ -131,8 +135,12 @@ func saveTagCache(tags map[int]string) {
 		fmt.Fprintf(os.Stderr, "Warning: Could not write cache file: %v\n", err)
 		fmt.Fprintf(os.Stderr, "Info: Using in-memory cache as fallback\n")
 		useInMemoryCache = true
+		inMemoryCache = &cache
 		return
 	}
+
+	// Successfully wrote to disk, also update in-memory cache as a hot cache
+	inMemoryCache = &cache
 }
 
 // isCacheStale checks if cached data has exceeded TTL

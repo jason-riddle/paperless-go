@@ -508,6 +508,7 @@ func TestInMemoryCache(t *testing.T) {
 		}
 
 		// This should fail to write to disk and set useInMemoryCache = true
+		// Note: /root/non-writable is used as a reliably unwritable path on Linux
 		saveTagCache(testTags)
 
 		// Verify in-memory cache was set
@@ -597,6 +598,7 @@ func TestInMemoryCacheFallbackIntegration(t *testing.T) {
 	os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
 
 	// First save should fail and enable in-memory cache
+	// Note: /root/non-writable is used as a reliably unwritable path on Linux
 	testTags := map[int]string{
 		1: "Important",
 		2: "Work",
