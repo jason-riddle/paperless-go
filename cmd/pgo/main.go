@@ -10,6 +10,38 @@ import (
 	"github.com/jason-riddle/paperless-go"
 )
 
+// getTagNames fetches all tags and returns a map from tag ID to tag name
+func getTagNames(ctx context.Context, client *paperless.Client) (map[int]string, error) {
+	tagNames := make(map[int]string)
+
+	// Fetch all pages of tags
+	opts := &paperless.ListOptions{PageSize: 100} // Large page size to minimize requests
+	for {
+		tags, err := client.ListTags(ctx, opts)
+		if err != nil {
+			return nil, fmt.Errorf("failed to fetch tags: %w", err)
+		}
+
+		// Add tags from this page
+		for _, tag := range tags.Results {
+			tagNames[tag.ID] = tag.Name
+		}
+
+		// Check if there are more pages
+		if tags.Next == nil || *tags.Next == "" {
+			break
+		}
+
+		// For simplicity, just increase page number (this assumes consistent ordering)
+		if opts.Page == 0 {
+			opts.Page = 1
+		}
+		opts.Page++
+	}
+
+	return tagNames, nil
+}
+
 func main() {
 	if err := run(); err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
@@ -57,6 +89,14 @@ func run() error {
 	defer cancel()
 
 	if resource == "docs" {
+		// Fetch tag names for resolution
+		tagNames, err := getTagNames(ctx, client)
+		if err != nil {
+			// If tag fetching fails, continue but warn
+			fmt.Fprintf(os.Stderr, "Warning: Could not fetch tags for name resolution: %v\n", err)
+			tagNames = make(map[int]string) // Empty map as fallback
+		}
+
 		// Fetch documents
 		docs, err := client.ListDocuments(ctx, nil)
 		if err != nil {
@@ -69,7 +109,17 @@ func run() error {
 			fmt.Printf("ID: %d\n", doc.ID)
 			fmt.Printf("Title: %s\n", doc.Title)
 			fmt.Printf("Created: %s\n", doc.Created.Time().Format(time.RFC3339))
-			fmt.Printf("Tags: %v\n", doc.Tags)
+
+			// Convert tag IDs to names
+			tagNamesList := make([]string, len(doc.Tags))
+			for i, tagID := range doc.Tags {
+				if name, ok := tagNames[tagID]; ok {
+					tagNamesList[i] = name
+				} else {
+					tagNamesList[i] = fmt.Sprintf("unknown(%d)", tagID)
+				}
+			}
+			fmt.Printf("Tags: %v\n", tagNamesList)
 			fmt.Println("---")
 		}
 	} else if resource == "tags" {
