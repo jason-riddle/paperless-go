@@ -68,6 +68,15 @@ The `pgo` CLI tool provides command-line access to Paperless-ngx:
   - `PAPERLESS_URL` or `-url`: Paperless instance URL
   - `PAPERLESS_TOKEN` or `-token`: API authentication token
 
+### CLI Commands
+
+- `pgo get docs` - List all documents
+- `pgo get docs <id>` - Get a specific document by ID
+- `pgo get tags` - List all tags
+- `pgo get tags <id>` - Get a specific tag by ID
+
+Document output includes tag names (not just IDs) for better readability.
+
 ## API Coverage
 
 Current implementation:
