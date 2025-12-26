@@ -77,6 +77,30 @@ func TestClient_ListDocuments(t *testing.T) {
 		}
 	})
 
+	t.Run("title only search", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			query := r.URL.Query()
+			if query.Get("title__icontains") != "invoice" {
+				t.Errorf("title__icontains = %v, want invoice", query.Get("title__icontains"))
+			}
+			if query.Get("query") != "" {
+				t.Errorf("query should be empty when title__icontains is set, got %v", query.Get("query"))
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(DocumentList{Count: 0, Results: []Document{}})
+		}))
+		defer server.Close()
+
+		c := NewClient(server.URL, "test-token")
+		opts := &ListOptions{
+			Query:     "invoice",
+			TitleOnly: true,
+		}
+		if _, err := c.ListDocuments(context.Background(), opts); err != nil {
+			t.Fatalf("ListDocuments with title-only failed: %v", err)
+		}
+	})
+
 	t.Run("error response", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)

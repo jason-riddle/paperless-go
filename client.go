@@ -95,7 +95,11 @@ func (c *Client) buildURL(path string, opts *ListOptions) (string, error) {
 			q.Set("page_size", strconv.Itoa(opts.PageSize))
 		}
 		if opts.Query != "" {
-			q.Set("query", opts.Query)
+			if opts.TitleOnly && path == documentsAPIPath {
+				q.Set("title__icontains", opts.Query)
+			} else {
+				q.Set("query", opts.Query)
+			}
 		}
 		if opts.Ordering != "" {
 			q.Set("ordering", opts.Ordering)

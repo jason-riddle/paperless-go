@@ -2,11 +2,26 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"os"
 	"os/exec"
 	"strings"
 	"testing"
 )
+
+func TestMain(m *testing.M) {
+	build := exec.Command("go", "build", "-o", "./pgo", ".")
+	build.Stdout = os.Stdout
+	build.Stderr = os.Stderr
+	if err := build.Run(); err != nil {
+		fmt.Fprintf(os.Stderr, "Failed to build pgo binary: %v\n", err)
+		os.Exit(1)
+	}
+
+	code := m.Run()
+	_ = os.Remove("./pgo")
+	os.Exit(code)
+}
 
 func TestCLI_GetTags(t *testing.T) {
 	// Skip this test if we don't have environment variables set
@@ -95,6 +110,81 @@ func TestCLI_GetDocs_WithTagNames(t *testing.T) {
 	}
 }
 
+func TestCLI_SearchDocs(t *testing.T) {
+	if os.Getenv("PAPERLESS_URL") == "" || os.Getenv("PAPERLESS_TOKEN") == "" {
+		t.Skip("Skipping integration test - PAPERLESS_URL and PAPERLESS_TOKEN not set")
+	}
+
+	cmd := exec.Command("./pgo", "search", "docs", "invoice")
+	cmd.Env = append(os.Environ(),
+		"PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"),
+		"PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"),
+	)
+
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("CLI command failed: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "Found") || !strings.Contains(output, "documents") {
+		t.Errorf("Expected output to contain search results, got: %s", output)
+	}
+}
+
+func TestCLI_SearchDocs_TitleOnly(t *testing.T) {
+	if os.Getenv("PAPERLESS_URL") == "" || os.Getenv("PAPERLESS_TOKEN") == "" {
+		t.Skip("Skipping integration test - PAPERLESS_URL and PAPERLESS_TOKEN not set")
+	}
+
+	cmd := exec.Command("./pgo", "search", "docs", "-title-only", "invoice")
+	cmd.Env = append(os.Environ(),
+		"PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"),
+		"PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"),
+	)
+
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("CLI command failed: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "Found") || !strings.Contains(output, "documents") {
+		t.Errorf("Expected output to contain search results, got: %s", output)
+	}
+}
+
+func TestCLI_SearchTags(t *testing.T) {
+	if os.Getenv("PAPERLESS_URL") == "" || os.Getenv("PAPERLESS_TOKEN") == "" {
+		t.Skip("Skipping integration test - PAPERLESS_URL and PAPERLESS_TOKEN not set")
+	}
+
+	cmd := exec.Command("./pgo", "search", "tags", "invoice")
+	cmd.Env = append(os.Environ(),
+		"PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"),
+		"PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"),
+	)
+
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("CLI command failed: %v", err)
+	}
+
+	output := stdout.String()
+	if !strings.Contains(output, "Found") || !strings.Contains(output, "tags") {
+		t.Errorf("Expected output to contain search results, got: %s", output)
+	}
+}
+
 func TestCLI_InvalidCommand(t *testing.T) {
 	cmd := exec.Command("./pgo", "invalid", "command")
 	cmd.Env = append(os.Environ(),
@@ -172,7 +262,7 @@ func TestCLI_GetSpecificDoc(t *testing.T) {
 		// Try end of string if no newline
 		end = len(output[start:])
 	}
-	
+
 	docID := strings.TrimSpace(output[start : start+end])
 	if docID == "" {
 		t.Skip("Could not parse valid document ID")
@@ -235,7 +325,7 @@ func TestCLI_GetSpecificTag(t *testing.T) {
 	if end == -1 {
 		end = len(output[start:])
 	}
-	
+
 	tagID := strings.TrimSpace(output[start : start+end])
 	if tagID == "" {
 		t.Skip("Could not parse valid tag ID")

@@ -33,7 +33,7 @@ func run() error {
 	// Parse command
 	args := flag.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  tagcache - Print the tag cache file path\n  doccache - Print the doc cache file path")
+		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  search docs <query> - Search documents (use -title-only to search titles only)\n  search tags <query> - Search tags\n  tagcache - Print the tag cache file path\n  doccache - Print the doc cache file path")
 	}
 
 	command := args[0]
@@ -66,12 +66,12 @@ func run() error {
 		return fmt.Errorf("API token is required (use -token flag or PAPERLESS_TOKEN env var)")
 	}
 
-	if command != "get" {
+	if command != "get" && command != "search" {
 		return fmt.Errorf("unknown command: %s", command)
 	}
 
 	if len(args) < 2 {
-		return fmt.Errorf("usage: pgo get <resource> [id]\nAvailable resources:\n  docs - List documents\n  docs <id> - Get specific document\n  tags - List tags\n  tags <id> - Get specific tag")
+		return fmt.Errorf("usage: pgo %s <resource> [args]\nAvailable resources:\n  docs - Documents\n  tags - Tags", command)
 	}
 
 	resource := args[1]
@@ -82,12 +82,36 @@ func run() error {
 	// Check if an ID was provided
 	var id int
 	var hasID bool
-	if len(args) > 2 {
+	if command == "get" && len(args) > 2 {
 		// Parse the ID argument
 		if _, err := fmt.Sscanf(args[2], "%d", &id); err != nil {
 			return fmt.Errorf("invalid ID format: %s", args[2])
 		}
 		hasID = true
+	}
+
+	var searchQuery string
+	var titleOnly bool
+	if command == "search" {
+		switch resource {
+		case "docs":
+			searchFlags := flag.NewFlagSet("search docs", flag.ContinueOnError)
+			titleOnlyFlag := searchFlags.Bool("title-only", false, "Search only document titles")
+			if err := searchFlags.Parse(args[2:]); err != nil {
+				return fmt.Errorf("parse search docs flags: %w", err)
+			}
+			remaining := searchFlags.Args()
+			if len(remaining) == 0 {
+				return fmt.Errorf("usage: pgo search docs [-title-only] <query>")
+			}
+			searchQuery = strings.Join(remaining, " ")
+			titleOnly = *titleOnlyFlag
+		case "tags":
+			if len(args) < 3 {
+				return fmt.Errorf("usage: pgo search tags <query>")
+			}
+			searchQuery = strings.Join(args[2:], " ")
+		}
 	}
 
 	// Create client
@@ -136,9 +160,16 @@ func run() error {
 			}
 
 			// Fetch documents
-			docs, err := client.ListDocuments(ctx, nil)
+			var opts *paperless.ListOptions
+			if command == "search" {
+				opts = &paperless.ListOptions{
+					Query:     searchQuery,
+					TitleOnly: titleOnly,
+				}
+			}
+			docs, err := client.ListDocuments(ctx, opts)
 			if err != nil {
-				return fmt.Errorf("failed to list documents: %w", err)
+				return fmt.Errorf("failed to %s documents: %w", command, err)
 			}
 
 			// Display results
@@ -176,9 +207,15 @@ func run() error {
 			fmt.Printf("Document Count: %d\n", tag.DocumentCount)
 		} else {
 			// Fetch tags
-			tags, err := client.ListTags(ctx, nil)
+			var opts *paperless.ListOptions
+			if command == "search" {
+				opts = &paperless.ListOptions{
+					Query: searchQuery,
+				}
+			}
+			tags, err := client.ListTags(ctx, opts)
 			if err != nil {
-				return fmt.Errorf("failed to list tags: %w", err)
+				return fmt.Errorf("failed to %s tags: %w", command, err)
 			}
 
 			// Display results
