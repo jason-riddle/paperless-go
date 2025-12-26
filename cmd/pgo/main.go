@@ -34,12 +34,12 @@ type DocumentListOutput struct {
 
 // convertDocToOutput converts a paperless.Document to DocumentWithTagNames
 func convertDocToOutput(doc *paperless.Document, tagNames map[int]string) DocumentWithTagNames {
-	tagNamesList := make([]string, 0, len(doc.Tags))
-	for _, tagID := range doc.Tags {
+	tagNamesList := make([]string, len(doc.Tags))
+	for i, tagID := range doc.Tags {
 		if name, ok := tagNames[tagID]; ok {
-			tagNamesList = append(tagNamesList, name)
+			tagNamesList[i] = name
 		} else {
-			tagNamesList = append(tagNamesList, fmt.Sprintf("unknown(%d)", tagID))
+			tagNamesList[i] = fmt.Sprintf("unknown(%d)", tagID)
 		}
 	}
 

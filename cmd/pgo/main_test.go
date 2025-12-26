@@ -313,19 +313,23 @@ func TestCLI_GetSpecificTag(t *testing.T) {
 		t.Fatalf("List tags failed: %v", err)
 	}
 
-	// Parse JSON to get the first tag ID
-	var listResult map[string]interface{}
+	// Parse JSON to get the first tag ID using a proper struct
+	type TagListResult struct {
+		Results []struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"results"`
+	}
+	var listResult TagListResult
 	if err := json.Unmarshal(listStdout.Bytes(), &listResult); err != nil {
 		t.Fatalf("Failed to parse list output: %v", err)
 	}
 
-	results, ok := listResult["results"].([]interface{})
-	if !ok || len(results) == 0 {
+	if len(listResult.Results) == 0 {
 		t.Skip("No tags found, skipping GetSpecificTag test")
 	}
 
-	firstTag := results[0].(map[string]interface{})
-	tagID := fmt.Sprintf("%v", int(firstTag["id"].(float64)))
+	tagID := fmt.Sprintf("%d", listResult.Results[0].ID)
 
 	cmd := exec.Command("./pgo", "get", "tags", tagID)
 	cmd.Env = append(os.Environ(),
@@ -342,19 +346,23 @@ func TestCLI_GetSpecificTag(t *testing.T) {
 		t.Fatalf("CLI command failed: %v", err)
 	}
 
-	// Parse the JSON output
-	var tag map[string]interface{}
+	// Parse the JSON output using a proper struct
+	type TagResult struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+	var tag TagResult
 	if err := json.Unmarshal(stdout.Bytes(), &tag); err != nil {
 		t.Fatalf("Expected valid JSON output, got: %s", stdout.String())
 	}
 
 	// Check that ID matches
-	if fmt.Sprintf("%v", int(tag["id"].(float64))) != tagID {
-		t.Errorf("Expected tag ID %s, got %v", tagID, tag["id"])
+	if fmt.Sprintf("%d", tag.ID) != tagID {
+		t.Errorf("Expected tag ID %s, got %d", tagID, tag.ID)
 	}
 
 	// Check that name is present
-	if _, ok := tag["name"]; !ok {
+	if tag.Name == "" {
 		t.Errorf("Expected tag to have a name")
 	}
 }
