@@ -97,4 +97,7 @@ type ListOptions struct {
 	PageSize int    // Results per page, 0 means default
 	Query    string // Full-text search query
 	Ordering string // Sort field (prefix with - for descending)
+	// TitleOnly searches only document titles when used with document listing/search.
+	// For other resources this option is ignored.
+	TitleOnly bool
 }

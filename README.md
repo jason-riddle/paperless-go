@@ -226,6 +226,29 @@ Future versions may include:
 - ⏳ File upload and download
 - ⏳ Bulk operations
 
+## CLI (pgo)
+
+Build the CLI tool:
+
+```bash
+go build -o pgo ./cmd/pgo
+```
+
+The CLI uses `PAPERLESS_URL` and `PAPERLESS_TOKEN` (or the `-url`/`-token` flags).
+
+Search examples:
+
+```bash
+# Search document titles and content
+./pgo search docs "invoice"
+
+# Search document titles only
+./pgo search docs -title-only "invoice"
+
+# Search tags
+./pgo search tags "finance"
+```
+
 ## Testing
 
 ### Unit Tests
