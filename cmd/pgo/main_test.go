@@ -18,7 +18,9 @@ func TestMain(m *testing.M) {
 		os.Exit(1)
 	}
 
-	os.Exit(m.Run())
+	code := m.Run()
+	_ = os.Remove("./pgo")
+	os.Exit(code)
 }
 
 func TestCLI_GetTags(t *testing.T) {

@@ -98,7 +98,7 @@ func run() error {
 			searchFlags := flag.NewFlagSet("search docs", flag.ContinueOnError)
 			titleOnlyFlag := searchFlags.Bool("title-only", false, "Search only document titles")
 			if err := searchFlags.Parse(args[2:]); err != nil {
-				return err
+				return fmt.Errorf("parse search docs flags: %w", err)
 			}
 			remaining := searchFlags.Args()
 			if len(remaining) == 0 {

@@ -7,7 +7,7 @@ import (
 
 // ListTags retrieves all tags.
 func (c *Client) ListTags(ctx context.Context, opts *ListOptions) (*TagList, error) {
-	fullURL, err := c.buildURL("/api/tags/", opts)
+	fullURL, err := c.buildURL(tagsAPIPath, opts)
 	if err != nil {
 		return nil, fmt.Errorf("build URL: %w", err)
 	}

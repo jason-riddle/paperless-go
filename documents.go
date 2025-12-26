@@ -5,8 +5,6 @@ import (
 	"fmt"
 )
 
-const documentsAPIPath = "/api/documents/"
-
 // ListDocuments retrieves documents with optional filtering.
 func (c *Client) ListDocuments(ctx context.Context, opts *ListOptions) (*DocumentList, error) {
 	fullURL, err := c.buildURL(documentsAPIPath, opts)
