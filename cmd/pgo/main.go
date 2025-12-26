@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"os"
@@ -10,6 +11,58 @@ import (
 
 	"github.com/jason-riddle/paperless-go"
 )
+
+// DocumentWithTagNames represents a document with tag names resolved
+type DocumentWithTagNames struct {
+	ID                  int      `json:"id"`
+	Title               string   `json:"title"`
+	Content             string   `json:"content"`
+	Created             string   `json:"created"`
+	Modified            string   `json:"modified"`
+	Added               string   `json:"added"`
+	ArchiveSerialNumber *int     `json:"archive_serial_number"`
+	OriginalFileName    string   `json:"original_file_name"`
+	Tags                []int    `json:"tags"`
+	TagNames            []string `json:"tag_names"`
+}
+
+// DocumentListOutput represents the output for list documents command
+type DocumentListOutput struct {
+	Count   int                    `json:"count"`
+	Results []DocumentWithTagNames `json:"results"`
+}
+
+// convertDocToOutput converts a paperless.Document to DocumentWithTagNames
+func convertDocToOutput(doc *paperless.Document, tagNames map[int]string) DocumentWithTagNames {
+	tagNamesList := make([]string, len(doc.Tags))
+	for i, tagID := range doc.Tags {
+		if name, ok := tagNames[tagID]; ok {
+			tagNamesList[i] = name
+		} else {
+			tagNamesList[i] = fmt.Sprintf("unknown(%d)", tagID)
+		}
+	}
+
+	return DocumentWithTagNames{
+		ID:                  doc.ID,
+		Title:               doc.Title,
+		Content:             doc.Content,
+		Created:             doc.Created.Time().Format(time.RFC3339),
+		Modified:            doc.Modified.Time().Format(time.RFC3339),
+		Added:               doc.Added.Time().Format(time.RFC3339),
+		ArchiveSerialNumber: doc.ArchiveSerialNumber,
+		OriginalFileName:    doc.OriginalFileName,
+		Tags:                doc.Tags,
+		TagNames:            tagNamesList,
+	}
+}
+
+// outputJSON outputs data as JSON to stdout
+func outputJSON(v interface{}) error {
+	encoder := json.NewEncoder(os.Stdout)
+	encoder.SetIndent("", "  ")
+	return encoder.Encode(v)
+}
 
 func main() {
 	if err := run(); err != nil {
@@ -24,11 +77,17 @@ func run() error {
 	token := flag.String("token", os.Getenv("PAPERLESS_TOKEN"), "API authentication token (default: $PAPERLESS_TOKEN)")
 	forceRefresh := flag.Bool("force-refresh", false, "Force refresh caches, bypassing any cached data")
 	inMemoryCacheFlag := flag.Bool("memory", false, "Use in-memory cache only for tags and docs, do not write to disk")
+	outputFormat := flag.String("output-format", "json", "Output format (only 'json' is supported)")
 	flag.Parse()
 
 	// Set the global in-memory cache flags for both tag and doc caches
 	useInMemoryCache = *inMemoryCacheFlag
 	useInMemoryDocCache = *inMemoryCacheFlag
+
+	// Validate output format
+	if *outputFormat != "json" {
+		return fmt.Errorf("unsupported output format: %s (only 'json' is supported)", *outputFormat)
+	}
 
 	// Parse command
 	args := flag.Args()
@@ -135,21 +194,11 @@ func run() error {
 				tagNames = make(map[int]string) // Empty map as fallback
 			}
 
-			fmt.Printf("Document %d:\n", doc.ID)
-			fmt.Printf("Title: %s\n", doc.Title)
-			fmt.Printf("Created: %s\n", doc.Created.Time().Format(time.RFC3339))
-
-			// Convert tag IDs to names
-			tagNamesList := make([]string, len(doc.Tags))
-			for i, tagID := range doc.Tags {
-				if name, ok := tagNames[tagID]; ok {
-					tagNamesList[i] = fmt.Sprintf("\"%s\"", name)
-				} else {
-					tagNamesList[i] = fmt.Sprintf("\"unknown(%d)\"", tagID)
-				}
+			// Convert to output format and display as JSON
+			output := convertDocToOutput(doc, tagNames)
+			if err := outputJSON(output); err != nil {
+				return fmt.Errorf("failed to output JSON: %w", err)
 			}
-			fmt.Printf("Tags: [%s]\n", strings.Join(tagNamesList, ", "))
-			fmt.Printf("Content: %s\n", doc.Content)
 		} else {
 			// Fetch tag names for resolution (with caching)
 			tagNames, err := getTagNamesWithCache(ctx, client, *forceRefresh, DefaultCacheTTL)
@@ -172,24 +221,19 @@ func run() error {
 				return fmt.Errorf("failed to %s documents: %w", command, err)
 			}
 
-			// Display results
-			fmt.Printf("Found %d documents\n\n", docs.Count)
-			for _, doc := range docs.Results {
-				fmt.Printf("ID: %d\n", doc.ID)
-				fmt.Printf("Title: %s\n", doc.Title)
-				fmt.Printf("Created: %s\n", doc.Created.Time().Format(time.RFC3339))
+			// Convert documents to output format
+			results := make([]DocumentWithTagNames, len(docs.Results))
+			for i, doc := range docs.Results {
+				results[i] = convertDocToOutput(&doc, tagNames)
+			}
 
-				// Convert tag IDs to names
-				tagNamesList := make([]string, len(doc.Tags))
-				for i, tagID := range doc.Tags {
-					if name, ok := tagNames[tagID]; ok {
-						tagNamesList[i] = fmt.Sprintf("\"%s\"", name)
-					} else {
-						tagNamesList[i] = fmt.Sprintf("\"unknown(%d)\"", tagID)
-					}
-				}
-				fmt.Printf("Tags: [%s]\n", strings.Join(tagNamesList, ", "))
-				fmt.Println("---")
+			// Output as JSON
+			output := DocumentListOutput{
+				Count:   docs.Count,
+				Results: results,
+			}
+			if err := outputJSON(output); err != nil {
+				return fmt.Errorf("failed to output JSON: %w", err)
 			}
 		}
 	} else if resource == "tags" {
@@ -200,11 +244,10 @@ func run() error {
 				return fmt.Errorf("failed to get tag %d: %w", id, err)
 			}
 
-			fmt.Printf("Tag %d:\n", tag.ID)
-			fmt.Printf("Name: %s\n", tag.Name)
-			fmt.Printf("Slug: %s\n", tag.Slug)
-			fmt.Printf("Color: %s\n", tag.Color)
-			fmt.Printf("Document Count: %d\n", tag.DocumentCount)
+			// Output as JSON
+			if err := outputJSON(tag); err != nil {
+				return fmt.Errorf("failed to output JSON: %w", err)
+			}
 		} else {
 			// Fetch tags
 			var opts *paperless.ListOptions
@@ -218,15 +261,9 @@ func run() error {
 				return fmt.Errorf("failed to %s tags: %w", command, err)
 			}
 
-			// Display results
-			fmt.Printf("Found %d tags\n\n", tags.Count)
-			for _, tag := range tags.Results {
-				fmt.Printf("ID: %d\n", tag.ID)
-				fmt.Printf("Name: %s\n", tag.Name)
-				fmt.Printf("Slug: %s\n", tag.Slug)
-				fmt.Printf("Color: %s\n", tag.Color)
-				fmt.Printf("Document Count: %d\n", tag.DocumentCount)
-				fmt.Println("---")
+			// Output as JSON
+			if err := outputJSON(tags); err != nil {
+				return fmt.Errorf("failed to output JSON: %w", err)
 			}
 		}
 	}

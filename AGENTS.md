@@ -74,14 +74,18 @@ The `pgo` CLI tool provides command-line access to Paperless-ngx:
 - `pgo get docs <id>` - Get a specific document by ID
 - `pgo get tags` - List all tags
 - `pgo get tags <id>` - Get a specific tag by ID
+- `pgo search docs <query>` - Search documents (use `-title-only` to search titles only)
+- `pgo search tags <query>` - Search tags
 - `pgo tagcache` - Print the cache file path (no authentication required)
+- `pgo doccache` - Print the doc cache file path (no authentication required)
 
-Document output includes tag names (not just IDs) for better readability.
+All commands return JSON output by default. Document output includes both tag IDs and resolved tag names for convenience.
 
 ### CLI Flags
 
 - `-url` - Paperless instance URL (default: `$PAPERLESS_URL`)
 - `-token` - API authentication token (default: `$PAPERLESS_TOKEN`)
+- `-output-format` - Output format, only `json` is supported (default: `json`)
 - `-force-refresh` - Force refresh tags cache, bypassing any cached data
 - `-memory` - Use in-memory cache only, do not write to disk
 

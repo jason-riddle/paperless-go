@@ -236,7 +236,57 @@ go build -o pgo ./cmd/pgo
 
 The CLI uses `PAPERLESS_URL` and `PAPERLESS_TOKEN` (or the `-url`/`-token` flags).
 
-Search examples:
+### Output Format
+
+All CLI commands return JSON by default. The `-output-format` flag can be used to specify the output format (currently only `json` is supported):
+
+```bash
+# Get tags (returns JSON)
+./pgo get tags
+
+# Explicitly specify JSON format
+./pgo -output-format=json get tags
+
+# Example output:
+# {
+#   "count": 2,
+#   "next": null,
+#   "previous": null,
+#   "results": [
+#     {
+#       "id": 1,
+#       "name": "Finance",
+#       "slug": "finance",
+#       "color": "#a6cee3",
+#       "document_count": 5
+#     }
+#   ]
+# }
+```
+
+### Document Output
+
+Documents include both tag IDs and resolved tag names for convenience:
+
+```bash
+./pgo get docs 123
+
+# Example output:
+# {
+#   "id": 123,
+#   "title": "Invoice 2023-001",
+#   "content": "...",
+#   "created": "2023-01-15T10:30:00Z",
+#   "modified": "2023-01-15T10:30:00Z",
+#   "added": "2023-01-15T10:30:00Z",
+#   "archive_serial_number": null,
+#   "original_file_name": "invoice.pdf",
+#   "tags": [1, 2],
+#   "tag_names": ["Finance", "Important"]
+# }
+```
+
+### Search Examples
 
 ```bash
 # Search document titles and content

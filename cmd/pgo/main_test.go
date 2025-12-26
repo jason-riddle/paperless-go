@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"fmt"
 	"os"
 	"os/exec"
@@ -45,12 +46,19 @@ func TestCLI_GetTags(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "Found") {
-		t.Errorf("Expected output to contain 'Found', got: %s", output)
+	// Check that output is valid JSON
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("Expected valid JSON output, got: %s", output)
 	}
 
-	if !strings.Contains(output, "tags") {
-		t.Errorf("Expected output to contain 'tags', got: %s", output)
+	// Check for expected JSON fields
+	if _, ok := result["count"]; !ok {
+		t.Errorf("Expected 'count' field in JSON output")
+	}
+
+	if _, ok := result["results"]; !ok {
+		t.Errorf("Expected 'results' field in JSON output")
 	}
 }
 
@@ -76,37 +84,21 @@ func TestCLI_GetDocs_WithTagNames(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "Found") {
-		t.Errorf("Expected output to contain 'Found', got: %s", output)
+	// Check that output is valid JSON
+	var result DocumentListOutput
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("Expected valid JSON output, got: %s", output)
 	}
 
-	if !strings.Contains(output, "documents") {
-		t.Errorf("Expected output to contain 'documents', got: %s", output)
-	}
-
-	// Check that we're showing tag names, not just numbers
-	// This is a basic check - we expect to see some text that looks like tag names
-	lines := strings.Split(output, "\n")
-	tagLineFound := false
-	for _, line := range lines {
-		if strings.HasPrefix(line, "Tags: ") {
-			tagLineFound = true
-			// Check that we have something that looks like tag names (not just numbers in brackets)
-			if strings.Contains(line, "unknown(") {
-				// If we have unknown tags, that's still OK for this test
-				continue
-			}
-			// We should have some non-numeric content
-			tagContent := strings.TrimPrefix(line, "Tags: ")
-			if strings.Trim(tagContent, " []") != "" {
-				// Found some tag content
-				break
-			}
+	// Check that tag_names field exists and is populated correctly
+	for _, doc := range result.Results {
+		if doc.TagNames == nil {
+			t.Errorf("Expected tag_names field to be present")
 		}
-	}
-
-	if !tagLineFound {
-		t.Errorf("Expected to find tag lines in output")
+		// TagNames should match the length of Tags
+		if len(doc.Tags) != len(doc.TagNames) {
+			t.Errorf("Expected tag_names to match tags length, got %d vs %d", len(doc.TagNames), len(doc.Tags))
+		}
 	}
 }
 
@@ -130,8 +122,10 @@ func TestCLI_SearchDocs(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "Found") || !strings.Contains(output, "documents") {
-		t.Errorf("Expected output to contain search results, got: %s", output)
+	// Check that output is valid JSON
+	var result DocumentListOutput
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("Expected valid JSON output, got: %s", output)
 	}
 }
 
@@ -155,8 +149,10 @@ func TestCLI_SearchDocs_TitleOnly(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "Found") || !strings.Contains(output, "documents") {
-		t.Errorf("Expected output to contain search results, got: %s", output)
+	// Check that output is valid JSON
+	var result DocumentListOutput
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("Expected valid JSON output, got: %s", output)
 	}
 }
 
@@ -180,8 +176,10 @@ func TestCLI_SearchTags(t *testing.T) {
 	}
 
 	output := stdout.String()
-	if !strings.Contains(output, "Found") || !strings.Contains(output, "tags") {
-		t.Errorf("Expected output to contain search results, got: %s", output)
+	// Check that output is valid JSON
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("Expected valid JSON output, got: %s", output)
 	}
 }
 
@@ -250,23 +248,17 @@ func TestCLI_GetSpecificDoc(t *testing.T) {
 		t.Fatalf("List docs failed: %v", err)
 	}
 
-	output := listStdout.String()
-	if !strings.Contains(output, "ID: ") {
+	// Parse JSON to get the first document ID
+	var listResult DocumentListOutput
+	if err := json.Unmarshal(listStdout.Bytes(), &listResult); err != nil {
+		t.Fatalf("Failed to parse list output: %v", err)
+	}
+
+	if len(listResult.Results) == 0 {
 		t.Skip("No documents found, skipping GetSpecificDoc test")
 	}
 
-	// Simple parsing to find the first ID
-	start := strings.Index(output, "ID: ") + 4
-	end := strings.Index(output[start:], "\n")
-	if end == -1 {
-		// Try end of string if no newline
-		end = len(output[start:])
-	}
-
-	docID := strings.TrimSpace(output[start : start+end])
-	if docID == "" {
-		t.Skip("Could not parse valid document ID")
-	}
+	docID := fmt.Sprintf("%d", listResult.Results[0].ID)
 
 	cmd := exec.Command("./pgo", "get", "docs", docID)
 	cmd.Env = append(os.Environ(),
@@ -283,13 +275,20 @@ func TestCLI_GetSpecificDoc(t *testing.T) {
 		t.Fatalf("CLI command failed: %v", err)
 	}
 
-	output = stdout.String()
-	if !strings.Contains(output, "Document "+docID) {
-		t.Errorf("Expected output to contain 'Document %s', got: %s", docID, output)
+	// Parse the JSON output
+	var doc DocumentWithTagNames
+	if err := json.Unmarshal(stdout.Bytes(), &doc); err != nil {
+		t.Fatalf("Expected valid JSON output, got: %s", stdout.String())
 	}
 
-	if !strings.Contains(output, "Title:") {
-		t.Errorf("Expected output to contain 'Title:', got: %s", output)
+	// Check that ID matches
+	if fmt.Sprintf("%d", doc.ID) != docID {
+		t.Errorf("Expected document ID %s, got %d", docID, doc.ID)
+	}
+
+	// Check that title is present
+	if doc.Title == "" {
+		t.Errorf("Expected document to have a title")
 	}
 }
 
@@ -314,22 +313,23 @@ func TestCLI_GetSpecificTag(t *testing.T) {
 		t.Fatalf("List tags failed: %v", err)
 	}
 
-	output := listStdout.String()
-	if !strings.Contains(output, "ID: ") {
+	// Parse JSON to get the first tag ID using a proper struct
+	type TagListResult struct {
+		Results []struct {
+			ID   int    `json:"id"`
+			Name string `json:"name"`
+		} `json:"results"`
+	}
+	var listResult TagListResult
+	if err := json.Unmarshal(listStdout.Bytes(), &listResult); err != nil {
+		t.Fatalf("Failed to parse list output: %v", err)
+	}
+
+	if len(listResult.Results) == 0 {
 		t.Skip("No tags found, skipping GetSpecificTag test")
 	}
 
-	// Simple parsing to find the first ID
-	start := strings.Index(output, "ID: ") + 4
-	end := strings.Index(output[start:], "\n")
-	if end == -1 {
-		end = len(output[start:])
-	}
-
-	tagID := strings.TrimSpace(output[start : start+end])
-	if tagID == "" {
-		t.Skip("Could not parse valid tag ID")
-	}
+	tagID := fmt.Sprintf("%d", listResult.Results[0].ID)
 
 	cmd := exec.Command("./pgo", "get", "tags", tagID)
 	cmd.Env = append(os.Environ(),
@@ -346,13 +346,24 @@ func TestCLI_GetSpecificTag(t *testing.T) {
 		t.Fatalf("CLI command failed: %v", err)
 	}
 
-	output = stdout.String()
-	if !strings.Contains(output, "Tag "+tagID) {
-		t.Errorf("Expected output to contain 'Tag %s', got: %s", tagID, output)
+	// Parse the JSON output using a proper struct
+	type TagResult struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+	var tag TagResult
+	if err := json.Unmarshal(stdout.Bytes(), &tag); err != nil {
+		t.Fatalf("Expected valid JSON output, got: %s", stdout.String())
 	}
 
-	if !strings.Contains(output, "Name:") {
-		t.Errorf("Expected output to contain 'Name:', got: %s", output)
+	// Check that ID matches
+	if fmt.Sprintf("%d", tag.ID) != tagID {
+		t.Errorf("Expected tag ID %s, got %d", tagID, tag.ID)
+	}
+
+	// Check that name is present
+	if tag.Name == "" {
+		t.Errorf("Expected tag to have a name")
 	}
 }
 
@@ -422,5 +433,56 @@ func TestCLI_TagCache_WithCustomXDG(t *testing.T) {
 	expected := "/tmp/test-cache/paperless-go/tags.json"
 	if output != expected {
 		t.Errorf("Expected output to be %s, got: %s", expected, output)
+	}
+}
+
+func TestCLI_OutputFormat_InvalidFormat(t *testing.T) {
+	cmd := exec.Command("./pgo", "-output-format=xml", "get", "tags")
+	cmd.Env = append(os.Environ(),
+		"PAPERLESS_URL=dummy",
+		"PAPERLESS_TOKEN=dummy",
+	)
+
+	var stderr bytes.Buffer
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err == nil {
+		t.Errorf("Expected command to fail with invalid output format")
+	}
+
+	errorOutput := stderr.String()
+	if !strings.Contains(errorOutput, "unsupported output format") {
+		t.Errorf("Expected 'unsupported output format' in error output, got: %s", errorOutput)
+	}
+}
+
+func TestCLI_OutputFormat_JSON(t *testing.T) {
+	// Skip this test if we don't have environment variables set
+	if os.Getenv("PAPERLESS_URL") == "" || os.Getenv("PAPERLESS_TOKEN") == "" {
+		t.Skip("Skipping integration test - PAPERLESS_URL and PAPERLESS_TOKEN not set")
+	}
+
+	cmd := exec.Command("./pgo", "-output-format=json", "get", "tags")
+	cmd.Env = append(os.Environ(),
+		"PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"),
+		"PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"),
+	)
+
+	var stdout bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = os.Stderr
+
+	err := cmd.Run()
+	if err != nil {
+		t.Fatalf("CLI command failed: %v", err)
+	}
+
+	output := stdout.String()
+	// Check that output is valid JSON
+	var result map[string]interface{}
+	if err := json.Unmarshal([]byte(output), &result); err != nil {
+		t.Fatalf("Expected valid JSON output, got: %s", output)
 	}
 }
