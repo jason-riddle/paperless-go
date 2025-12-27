@@ -1,0 +1,9 @@
+---
+inputs:
+  nixpkgs:
+    url: github:NixOS/nixpkgs/nixpkgs-unstable
+
+# Disable profiles to avoid evaluation issues
+profiles: {}
+
+allowUnfree: true

@@ -3,11 +3,9 @@ testdata/fixtures/
 testdata/consume/
 
 # Binaries
-
 cmd/pgo/pgo
 rag/pgo-rag
 
- for programs and plugins
 *.exe
 *.exe~
 *.dll
@@ -43,6 +41,7 @@ vendor/
 .DS_Store
 Thumbs.db
 
-# Docker volumes
-paperless-data/
-paperless-media/
+# Devenv
+.devenv
+.devenv.flake.nix
+.pre-commit-config.yaml
