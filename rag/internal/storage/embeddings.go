@@ -52,6 +52,8 @@ func (db *DB) InsertEmbedding(docID int, content string, vector []float32) error
 // GetDocumentByPaperlessID retrieves a document by its Paperless ID
 func (db *DB) GetDocumentByPaperlessID(paperlessID int) (*Document, error) {
 	var doc Document
+	var embeddedAt sql.NullString
+	var lastModified sql.NullString
 	err := db.conn.QueryRow(`
 		SELECT id, paperless_id, paperless_url, title, tags, embedded_at, last_modified
 		FROM documents
@@ -62,14 +64,29 @@ func (db *DB) GetDocumentByPaperlessID(paperlessID int) (*Document, error) {
 		&doc.PaperlessURL,
 		&doc.Title,
 		&doc.Tags,
-		&doc.EmbeddedAt,
-		&doc.LastModified,
+		&embeddedAt,
+		&lastModified,
 	)
 	if err == sql.ErrNoRows {
 		return nil, nil
 	}
 	if err != nil {
 		return nil, fmt.Errorf("failed to get document: %w", err)
+	}
+
+	if embeddedAt.Valid {
+		parsed, err := parseTimestamp(embeddedAt.String)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse embedded_at: %w", err)
+		}
+		doc.EmbeddedAt = parsed
+	}
+	if lastModified.Valid {
+		parsed, err := parseTimestamp(lastModified.String)
+		if err != nil {
+			return nil, fmt.Errorf("failed to parse last_modified: %w", err)
+		}
+		doc.LastModified = parsed
 	}
 	return &doc, nil
 }
@@ -107,17 +124,33 @@ func (db *DB) ListDocuments() ([]Document, error) {
 	var documents []Document
 	for rows.Next() {
 		var doc Document
+		var embeddedAt sql.NullString
+		var lastModified sql.NullString
 		err := rows.Scan(
 			&doc.ID,
 			&doc.PaperlessID,
 			&doc.PaperlessURL,
 			&doc.Title,
 			&doc.Tags,
-			&doc.EmbeddedAt,
-			&doc.LastModified,
+			&embeddedAt,
+			&lastModified,
 		)
 		if err != nil {
 			return nil, fmt.Errorf("failed to scan document: %w", err)
+		}
+		if embeddedAt.Valid {
+			parsed, err := parseTimestamp(embeddedAt.String)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse embedded_at: %w", err)
+			}
+			doc.EmbeddedAt = parsed
+		}
+		if lastModified.Valid {
+			parsed, err := parseTimestamp(lastModified.String)
+			if err != nil {
+				return nil, fmt.Errorf("failed to parse last_modified: %w", err)
+			}
+			doc.LastModified = parsed
 		}
 		documents = append(documents, doc)
 	}

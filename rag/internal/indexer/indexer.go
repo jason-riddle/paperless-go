@@ -27,6 +27,7 @@ type PaperlessClient interface {
 // BuildOptions configures the indexing process.
 type BuildOptions struct {
 	PageSize int
+	MaxDocs  int
 }
 
 // BuildSummary describes the result of an index build.
@@ -76,6 +77,9 @@ func BuildIndex(ctx context.Context, client PaperlessClient, db *storage.DB, emb
 	summary.DocumentsFetched = len(documents)
 
 	for _, doc := range documents {
+		if opts.MaxDocs > 0 && summary.DocumentsIndexed >= opts.MaxDocs {
+			break
+		}
 		select {
 		case <-ctx.Done():
 			return summary, ctx.Err()

@@ -85,21 +85,3 @@ func (db *DB) SearchSimilar(queryVector []float32, limit int, threshold float64)
 
 	return results, nil
 }
-
-// parseTimestamp parses SQLite timestamp strings
-func parseTimestamp(ts string) (time.Time, error) {
-	// Try common SQLite timestamp formats
-	formats := []string{
-		"2006-01-02 15:04:05",
-		"2006-01-02T15:04:05Z",
-		time.RFC3339,
-	}
-
-	for _, format := range formats {
-		if t, err := time.Parse(format, ts); err == nil {
-			return t, nil
-		}
-	}
-
-	return time.Time{}, fmt.Errorf("unable to parse timestamp: %s", ts)
-}

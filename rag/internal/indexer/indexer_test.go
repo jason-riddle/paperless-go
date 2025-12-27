@@ -210,6 +210,41 @@ func TestBuildIndexSkipsUnchanged(t *testing.T) {
 	}
 }
 
+func TestBuildIndexMaxDocs(t *testing.T) {
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "index.db")
+	db, err := storage.NewDB(dbPath)
+	if err != nil {
+		t.Fatalf("failed to create db: %v", err)
+	}
+	defer db.Close()
+
+	modified := time.Now().UTC().Truncate(time.Second)
+	client := fakePaperless{
+		documents: []paperless.Document{
+			{ID: 1, Title: "Doc1", Content: "content1", Modified: paperless.Date(modified)},
+			{ID: 2, Title: "Doc2", Content: "content2", Modified: paperless.Date(modified)},
+			{ID: 3, Title: "Doc3", Content: "content3", Modified: paperless.Date(modified)},
+		},
+	}
+
+	embedder := fakeEmbedder{vectors: map[string][]float32{
+		buildEmbeddingText("Doc1", "", "content1"): {1, 0, 0},
+		buildEmbeddingText("Doc2", "", "content2"): {0, 1, 0},
+		buildEmbeddingText("Doc3", "", "content3"): {0, 0, 1},
+	}}
+
+	summary, err := BuildIndex(ctx, client, db, embedder, BuildOptions{MaxDocs: 2})
+	if err != nil {
+		t.Fatalf("BuildIndex failed: %v", err)
+	}
+	if summary.DocumentsIndexed != 2 {
+		t.Fatalf("expected 2 documents indexed, got %d", summary.DocumentsIndexed)
+	}
+}
+
 func TestHelpers(t *testing.T) {
 	if result := formatTags([]int{2, 1}, map[int]string{1: "alpha", 2: "beta"}); result != "alpha, beta" {
 		t.Fatalf("unexpected tags: %s", result)
