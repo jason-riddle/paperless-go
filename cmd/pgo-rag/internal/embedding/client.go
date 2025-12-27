@@ -51,22 +51,22 @@ func (c *Client) GenerateEmbedding(text string) ([]float32, error) {
 		return nil, fmt.Errorf("failed to marshal request: %w", err)
 	}
 
-	// Create HTTP request
-	embeddingsURL := c.baseURL + "/embeddings"
-	req, err := http.NewRequest("POST", embeddingsURL, bytes.NewBuffer(jsonData))
-	if err != nil {
-		return nil, fmt.Errorf("failed to create request: %w", err)
-	}
-
-	req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	req.Header.Set("Content-Type", "application/json")
-
 	// Execute request with retry logic
 	var resp *http.Response
 	var lastErr error
 	maxRetries := 3
 
 	for i := 0; i < maxRetries; i++ {
+		// Create a fresh request each attempt so the body can be read.
+		embeddingsURL := c.baseURL + "/embeddings"
+		req, err := http.NewRequest("POST", embeddingsURL, bytes.NewReader(jsonData))
+		if err != nil {
+			return nil, fmt.Errorf("failed to create request: %w", err)
+		}
+
+		req.Header.Set("Authorization", "Bearer "+c.apiKey)
+		req.Header.Set("Content-Type", "application/json")
+
 		resp, lastErr = c.client.Do(req)
 
 		// Success case
@@ -75,7 +75,7 @@ func (c *Client) GenerateEmbedding(text string) ([]float32, error) {
 		}
 
 		// Cleanup response body if we're retrying
-		if resp != nil && resp.Body != nil {
+		if i < maxRetries-1 && resp != nil && resp.Body != nil {
 			resp.Body.Close()
 		}
 

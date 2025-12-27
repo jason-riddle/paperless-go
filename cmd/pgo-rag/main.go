@@ -6,7 +6,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
+	"runtime"
 	"strconv"
 	"strings"
 	"time"
@@ -26,6 +28,7 @@ Usage:
 Global flags:
   -url             Paperless instance URL (or PAPERLESS_URL)
   -token           Paperless API token (or PAPERLESS_TOKEN)
+  -log-level       Log level (debug, info, warn, error) (or LOG_LEVEL)
   -embeddings-url  Embeddings API base URL (or PGO_RAG_EMBEDDINGS_URL)
   -embeddings-key  Embeddings API key (or PGO_RAG_EMBEDDINGS_KEY)
   -embeddings-model Embeddings model name (or PGO_RAG_EMBEDDINGS_MODEL)
@@ -79,6 +82,7 @@ func runBuild(ctx context.Context, args []string) error {
 	dbPath := flags.String("db", "", "SQLite database path")
 	url := flags.String("url", os.Getenv("PAPERLESS_URL"), "Paperless URL")
 	token := flags.String("token", os.Getenv("PAPERLESS_TOKEN"), "Paperless token")
+	logLevel := flags.String("log-level", os.Getenv("LOG_LEVEL"), "Log level (debug, info, warn, error)")
 	pageSize := flags.Int("page-size", 100, "Paperless page size")
 	maxDocs := flags.Int("max-docs", getenvIntDefault("PGO_RAG_MAX_DOCS", 5), "Maximum documents to index (0 = no limit)")
 	tagName := flags.String("tag", strings.TrimSpace(os.Getenv("PGO_RAG_TAG")), "Tag name filter (exact match)")
@@ -87,6 +91,10 @@ func runBuild(ctx context.Context, args []string) error {
 	embeddingsModel := flags.String("embeddings-model", os.Getenv("PGO_RAG_EMBEDDINGS_MODEL"), "Embeddings model")
 
 	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
+	if err := configureLogging(*logLevel); err != nil {
 		return err
 	}
 
@@ -146,12 +154,17 @@ func runSearch(ctx context.Context, args []string) error {
 	dbPath := flags.String("db", "", "SQLite database path")
 	query := flags.String("query", "", "Search query")
 	limit := flags.Int("limit", 10, "Max results")
-	threshold := flags.Float64("threshold", 0.7, "Similarity threshold")
+	threshold := flags.Float64("threshold", 0.7, "Similarity threshold (0-1, higher = stricter)")
+	logLevel := flags.String("log-level", os.Getenv("LOG_LEVEL"), "Log level (debug, info, warn, error)")
 	embeddingsURL := flags.String("embeddings-url", os.Getenv("PGO_RAG_EMBEDDINGS_URL"), "Embeddings API base URL")
 	embeddingsKey := flags.String("embeddings-key", os.Getenv("PGO_RAG_EMBEDDINGS_KEY"), "Embeddings API key")
 	embeddingsModel := flags.String("embeddings-model", os.Getenv("PGO_RAG_EMBEDDINGS_MODEL"), "Embeddings model")
 
 	if err := flags.Parse(args); err != nil {
+		return err
+	}
+
+	if err := configureLogging(*logLevel); err != nil {
 		return err
 	}
 
@@ -267,4 +280,63 @@ func loadDotEnv(path string) (bool, error) {
 	}
 
 	return true, nil
+}
+
+func configureLogging(level string) error {
+	level = strings.TrimSpace(strings.ToLower(level))
+	if level == "" {
+		level = "info"
+	}
+
+	var slogLevel slog.Level
+	switch level {
+	case "debug":
+		slogLevel = slog.LevelDebug
+	case "info":
+		slogLevel = slog.LevelInfo
+	case "warn", "warning":
+		slogLevel = slog.LevelWarn
+	case "error":
+		slogLevel = slog.LevelError
+	default:
+		return fmt.Errorf("invalid log level: %s", level)
+	}
+
+	base := slog.NewTextHandler(os.Stderr, &slog.HandlerOptions{
+		Level:     slogLevel,
+		AddSource: true,
+	})
+	handler := &funcHandler{Handler: base}
+	slog.SetDefault(slog.New(handler))
+	return nil
+}
+
+type funcHandler struct {
+	slog.Handler
+}
+
+func (h *funcHandler) Handle(ctx context.Context, r slog.Record) error {
+	if fn := callerFuncName(); fn != "" {
+		r.AddAttrs(slog.String("func", fn))
+	}
+	return h.Handler.Handle(ctx, r)
+}
+
+func callerFuncName() string {
+	pcs := make([]uintptr, 10)
+	n := runtime.Callers(4, pcs)
+	if n == 0 {
+		return ""
+	}
+	frames := runtime.CallersFrames(pcs[:n])
+	for {
+		frame, more := frames.Next()
+		if frame.Function != "" && !strings.Contains(frame.Function, "log/slog") {
+			return frame.Function
+		}
+		if !more {
+			break
+		}
+	}
+	return ""
 }

@@ -2,8 +2,11 @@ package embedding
 
 import (
 	"encoding/json"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync/atomic"
 	"testing"
 )
 
@@ -97,6 +100,81 @@ func TestGenerateEmbeddingSuccess(t *testing.T) {
 	}
 }
 
+func TestGenerateEmbeddingRetriesWithBody(t *testing.T) {
+	var requests int32
+	var server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&requests, 1)
+
+		body, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("Failed to read request body: %v", err)
+		}
+		if len(body) == 0 {
+			t.Fatal("Expected non-empty request body")
+		}
+
+		var req EmbeddingRequest
+		if err := json.Unmarshal(body, &req); err != nil {
+			t.Fatalf("Failed to decode request JSON: %v", err)
+		}
+		if req.Model == "" || req.Input == "" {
+			t.Fatalf("Expected model and input in request, got model=%q input=%q", req.Model, req.Input)
+		}
+
+		if atomic.LoadInt32(&requests) == 1 {
+			w.Header().Set("Content-Type", "application/json")
+			w.WriteHeader(http.StatusInternalServerError)
+			var errResp = ErrorResponse{
+				Error: struct {
+					Message string `json:"message"`
+					Type    string `json:"type"`
+					Code    string `json:"code"`
+				}{
+					Message: "temporary error",
+					Type:    "server_error",
+					Code:    "temporary",
+				},
+			}
+			json.NewEncoder(w).Encode(errResp)
+			return
+		}
+
+		var response = EmbeddingResponse{
+			Data: []struct {
+				Embedding []float32 `json:"embedding"`
+				Index     int       `json:"index"`
+			}{
+				{
+					Embedding: []float32{0.1, 0.2, 0.3},
+					Index:     0,
+				},
+			},
+			Model: "test-model",
+		}
+		w.Header().Set("Content-Type", "application/json")
+		json.NewEncoder(w).Encode(response)
+	}))
+	defer server.Close()
+
+	var client = &Client{
+		apiKey:  "test-key",
+		model:   "test-model",
+		baseURL: server.URL,
+		client:  &http.Client{},
+	}
+
+	var embedding, err = client.GenerateEmbedding("test text")
+	if err != nil {
+		t.Fatalf("Failed to generate embedding after retry: %v", err)
+	}
+	if len(embedding) != 3 {
+		t.Fatalf("Expected 3 dimensions, got %d", len(embedding))
+	}
+	if atomic.LoadInt32(&requests) != 2 {
+		t.Fatalf("Expected 2 requests, got %d", requests)
+	}
+}
+
 func TestGenerateEmbeddingAPIError(t *testing.T) {
 	var server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -126,6 +204,9 @@ func TestGenerateEmbeddingAPIError(t *testing.T) {
 	var _, err = client.GenerateEmbedding("test text")
 	if err == nil {
 		t.Error("Expected error for invalid API key, got nil")
+	}
+	if err != nil && !strings.Contains(err.Error(), "Invalid API key") {
+		t.Errorf("Expected API error message to include server message, got: %v", err)
 	}
 }
 

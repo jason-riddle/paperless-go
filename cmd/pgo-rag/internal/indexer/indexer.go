@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"log/slog"
 	"sort"
 	"strings"
 	"time"
@@ -88,6 +89,11 @@ func BuildIndex(ctx context.Context, client PaperlessClient, db *storage.DB, emb
 		}
 
 		if opts.TagName != "" && !documentHasTag(doc, tagsByID, opts.TagName) {
+			slog.Info("Skipping document without tag",
+				"paperless_id", doc.ID,
+				"title", strings.TrimSpace(doc.Title),
+				"required_tag", opts.TagName,
+			)
 			summary.DocumentsSkipped++
 			continue
 		}
@@ -95,6 +101,12 @@ func BuildIndex(ctx context.Context, client PaperlessClient, db *storage.DB, emb
 		tags := formatTags(doc.Tags, tagsByID)
 		text := buildEmbeddingText(doc.Title, tags, doc.Content)
 		if text == "" {
+			slog.Info("Skipping document with empty embedding text",
+				"paperless_id", doc.ID,
+				"title", strings.TrimSpace(doc.Title),
+				"tags", tags,
+				"content_len", len(strings.TrimSpace(doc.Content)),
+			)
 			summary.DocumentsSkipped++
 			continue
 		}
@@ -105,6 +117,11 @@ func BuildIndex(ctx context.Context, client PaperlessClient, db *storage.DB, emb
 			return summary, err
 		}
 		if existing != nil && existing.LastModified.Equal(modified) {
+			slog.Info("Skipping unchanged document",
+				"paperless_id", doc.ID,
+				"title", strings.TrimSpace(doc.Title),
+				"last_modified", modified,
+			)
 			summary.DocumentsSkipped++
 			continue
 		}
@@ -143,6 +160,14 @@ func BuildIndex(ctx context.Context, client PaperlessClient, db *storage.DB, emb
 		if err != nil {
 			return summary, fmt.Errorf("generate embedding for document %d: %w", doc.ID, err)
 		}
+		slog.Info("Embedded document",
+			"paperless_id", doc.ID,
+			"title", strings.TrimSpace(doc.Title),
+			"tags", tags,
+			"content_len", len(strings.TrimSpace(doc.Content)),
+			"embedding_text_len", len(text),
+			"embedding_text_preview", previewText(text, 200),
+		)
 		if err := db.InsertEmbedding(docID, text, vector); err != nil {
 			return summary, err
 		}
@@ -317,4 +342,12 @@ func documentHasTag(doc paperless.Document, tagsByID map[int]string, tagName str
 		}
 	}
 	return false
+}
+
+func previewText(text string, max int) string {
+	text = strings.TrimSpace(text)
+	if max <= 0 || len(text) <= max {
+		return text
+	}
+	return text[:max] + "..."
 }
