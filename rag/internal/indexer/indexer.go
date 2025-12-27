@@ -28,6 +28,7 @@ type PaperlessClient interface {
 type BuildOptions struct {
 	PageSize int
 	MaxDocs  int
+	TagName  string
 }
 
 // BuildSummary describes the result of an index build.
@@ -84,6 +85,11 @@ func BuildIndex(ctx context.Context, client PaperlessClient, db *storage.DB, emb
 		case <-ctx.Done():
 			return summary, ctx.Err()
 		default:
+		}
+
+		if opts.TagName != "" && !documentHasTag(doc, tagsByID, opts.TagName) {
+			summary.DocumentsSkipped++
+			continue
 		}
 
 		tags := formatTags(doc.Tags, tagsByID)
@@ -281,4 +287,13 @@ func buildEmbeddingText(title string, tags string, content string) string {
 
 func docURL(doc paperless.Document) string {
 	return fmt.Sprintf("/api/documents/%d/", doc.ID)
+}
+
+func documentHasTag(doc paperless.Document, tagsByID map[int]string, tagName string) bool {
+	for _, id := range doc.Tags {
+		if tagsByID[id] == tagName {
+			return true
+		}
+	}
+	return false
 }

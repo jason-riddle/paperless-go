@@ -35,4 +35,5 @@ go build ./cmd/pgo-rag
 - `PGO_RAG_EMBEDDINGS_URL` (required)
 - `PGO_RAG_EMBEDDINGS_KEY` (required)
 - `PGO_RAG_EMBEDDINGS_MODEL` (required)
-- `PGO_RAG_MAX_DOCS` (optional; limit indexed documents for testing)
+- `PGO_RAG_MAX_DOCS` (optional; limit indexed documents for testing, default: 5)
+- `PGO_RAG_TAG` (optional; tag name filter, exact match)
