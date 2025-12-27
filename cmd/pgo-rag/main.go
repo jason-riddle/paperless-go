@@ -11,9 +11,9 @@ import (
 	"time"
 
 	paperless "github.com/jason-riddle/paperless-go"
-	"github.com/jason-riddle/paperless-go/rag/internal/embedding"
-	"github.com/jason-riddle/paperless-go/rag/internal/indexer"
-	"github.com/jason-riddle/paperless-go/rag/internal/storage"
+	"github.com/jason-riddle/paperless-go/cmd/pgo-rag/internal/embedding"
+	"github.com/jason-riddle/paperless-go/cmd/pgo-rag/internal/indexer"
+	"github.com/jason-riddle/paperless-go/cmd/pgo-rag/internal/storage"
 )
 
 const usage = `pgo-rag: local RAG indexing and search for Paperless

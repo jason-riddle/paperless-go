@@ -2,25 +2,17 @@
 
 `pgo-rag` is a separate binary that provides local RAG indexing and search for Paperless.
 
-This module intentionally lives under `rag/` so the root `paperless-go` module stays
-zero-dependency. The RAG implementation can depend on SQLite and local embedding
-models without polluting the core library.
+This command lives under `cmd/pgo-rag` so the root `paperless-go` module remains
+zero-dependency. The RAG implementation can depend on SQLite and embedding
+clients without polluting the core library.
 
 ## Development
 
 From the repository root:
 
 ```
-go work init
-```
-
-Or use the included `go.work` file (if present) to work across modules.
-
-Build the RAG CLI:
-
-```
-cd rag
-go build ./cmd/pgo-rag
+cd cmd/pgo-rag
+go build
 ```
 
 ## Planned commands

@@ -1,8 +1,11 @@
-module github.com/jason-riddle/paperless-go/rag
+module github.com/jason-riddle/paperless-go/cmd/pgo-rag
 
 go 1.24.10
 
-require modernc.org/sqlite v1.40.1
+require (
+	github.com/jason-riddle/paperless-go v0.0.0
+	modernc.org/sqlite v1.40.1
+)
 
 require (
 	github.com/dustin/go-humanize v1.0.1 // indirect
@@ -17,4 +20,4 @@ require (
 	modernc.org/memory v1.11.0 // indirect
 )
 
-replace github.com/jason-riddle/paperless-go => ../
+replace github.com/jason-riddle/paperless-go => ../..

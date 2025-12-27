@@ -7,7 +7,7 @@ import (
 	"time"
 
 	paperless "github.com/jason-riddle/paperless-go"
-	"github.com/jason-riddle/paperless-go/rag/internal/storage"
+	"github.com/jason-riddle/paperless-go/cmd/pgo-rag/internal/storage"
 )
 
 type fakeEmbedder struct {

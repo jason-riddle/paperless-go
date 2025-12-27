@@ -387,7 +387,7 @@ func run() error {
 func runRag(args []string) error {
 	path, err := exec.LookPath("pgo-rag")
 	if err != nil {
-		return fmt.Errorf("pgo-rag not found in PATH; build it with: (cd rag && go build ./cmd/pgo-rag)")
+		return fmt.Errorf("pgo-rag not found in PATH; build it with: (cd cmd/pgo-rag && go build)")
 	}
 
 	cmd := exec.Command(path, args...)
