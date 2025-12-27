@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"context"
 	"encoding/json"
 	"flag"
@@ -33,6 +34,15 @@ Global flags:
 `
 
 func main() {
+	loaded, err := loadDotEnv(".env")
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "failed to load .env:", err)
+	} else if loaded {
+		fmt.Fprintln(os.Stderr, "loaded .env")
+	} else {
+		fmt.Fprintln(os.Stderr, "no .env found, using flags/env")
+	}
+
 	if len(os.Args) < 2 {
 		fmt.Fprint(os.Stderr, usage)
 		os.Exit(2)
@@ -199,4 +209,62 @@ func getenvIntDefault(key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+func loadDotEnv(path string) (bool, error) {
+	info, err := os.Stat(path)
+	if err != nil {
+		if os.IsNotExist(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if info.IsDir() {
+		return false, fmt.Errorf("%s is a directory", path)
+	}
+
+	file, err := os.Open(path)
+	if err != nil {
+		return false, err
+	}
+	defer file.Close()
+
+	scanner := bufio.NewScanner(file)
+	lineNum := 0
+	for scanner.Scan() {
+		lineNum++
+		line := strings.TrimSpace(scanner.Text())
+		if line == "" || strings.HasPrefix(line, "#") {
+			continue
+		}
+		if strings.HasPrefix(line, "export ") {
+			line = strings.TrimSpace(strings.TrimPrefix(line, "export "))
+		}
+		idx := strings.IndexByte(line, '=')
+		if idx <= 0 {
+			return false, fmt.Errorf("invalid .env line %d", lineNum)
+		}
+		key := strings.TrimSpace(line[:idx])
+		value := strings.TrimSpace(line[idx+1:])
+		if len(value) >= 2 {
+			if (value[0] == '"' && value[len(value)-1] == '"') || (value[0] == '\'' && value[len(value)-1] == '\'') {
+				value = value[1 : len(value)-1]
+			}
+		}
+		if key == "" {
+			return false, fmt.Errorf("invalid .env line %d", lineNum)
+		}
+		if _, exists := os.LookupEnv(key); exists {
+			continue
+		}
+		if err := os.Setenv(key, value); err != nil {
+			return false, err
+		}
+	}
+
+	if err := scanner.Err(); err != nil {
+		return false, err
+	}
+
+	return true, nil
 }
