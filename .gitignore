@@ -5,6 +5,7 @@ testdata/consume/
 # Binaries
 
 cmd/pgo/pgo
+rag/pgo-rag
 
  for programs and plugins
 *.exe
