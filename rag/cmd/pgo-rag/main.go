@@ -29,7 +29,7 @@ Global flags:
   -embeddings-key  Embeddings API key (or PGO_RAG_EMBEDDINGS_KEY)
   -embeddings-model Embeddings model name (or PGO_RAG_EMBEDDINGS_MODEL)
   -max-docs        Maximum documents to index (or PGO_RAG_MAX_DOCS)
-  -tag             Tag name filter (or PGO_RAG_TAG)
+  -tag             Tag name filter (or PGO_RAG_TAG / PAPERLESS_RAG_INDEX_TAG)
 `
 
 func main() {
@@ -71,7 +71,7 @@ func runBuild(ctx context.Context, args []string) error {
 	token := flags.String("token", os.Getenv("PAPERLESS_TOKEN"), "Paperless token")
 	pageSize := flags.Int("page-size", 100, "Paperless page size")
 	maxDocs := flags.Int("max-docs", getenvIntDefault("PGO_RAG_MAX_DOCS", 5), "Maximum documents to index (0 = no limit)")
-	tagName := flags.String("tag", os.Getenv("PGO_RAG_TAG"), "Tag name filter (exact match)")
+	tagName := flags.String("tag", getenvFirst("PGO_RAG_TAG", "PAPERLESS_RAG_INDEX_TAG"), "Tag name filter (exact match)")
 	embeddingsURL := flags.String("embeddings-url", os.Getenv("PGO_RAG_EMBEDDINGS_URL"), "Embeddings API base URL")
 	embeddingsKey := flags.String("embeddings-key", os.Getenv("PGO_RAG_EMBEDDINGS_KEY"), "Embeddings API key")
 	embeddingsModel := flags.String("embeddings-model", os.Getenv("PGO_RAG_EMBEDDINGS_MODEL"), "Embeddings model")
@@ -199,4 +199,13 @@ func getenvIntDefault(key string, fallback int) int {
 		return fallback
 	}
 	return n
+}
+
+func getenvFirst(keys ...string) string {
+	for _, key := range keys {
+		if value := strings.TrimSpace(os.Getenv(key)); value != "" {
+			return value
+		}
+	}
+	return ""
 }
