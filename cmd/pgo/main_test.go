@@ -8,6 +8,7 @@ import (
 	"os/exec"
 	"strings"
 	"testing"
+	"time"
 )
 
 func TestMain(m *testing.M) {
@@ -484,5 +485,155 @@ func TestCLI_OutputFormat_JSON(t *testing.T) {
 	var result map[string]interface{}
 	if err := json.Unmarshal([]byte(output), &result); err != nil {
 		t.Fatalf("Expected valid JSON output, got: %s", output)
+	}
+}
+
+func TestCLI_ApplyDocs_MissingFlags(t *testing.T) {
+	cmd := exec.Command("./pgo", "apply", "docs", "1")
+	cmd.Env = append(os.Environ(),
+		"PAPERLESS_URL=dummy",
+		"PAPERLESS_TOKEN=dummy",
+	)
+
+	var stderr bytes.Buffer
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err == nil {
+		t.Errorf("Expected command to fail with missing flags")
+	}
+
+	errorOutput := stderr.String()
+	if !strings.Contains(errorOutput, "missing required flag: --tags") {
+		t.Errorf("Expected 'missing required flag: --tags' in error output, got: %s", errorOutput)
+	}
+}
+
+func TestCLI_ApplyDocs_InvalidID(t *testing.T) {
+	cmd := exec.Command("./pgo", "apply", "docs", "invalid", "--tags=1")
+	cmd.Env = append(os.Environ(),
+		"PAPERLESS_URL=dummy",
+		"PAPERLESS_TOKEN=dummy",
+	)
+
+	var stderr bytes.Buffer
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err == nil {
+		t.Errorf("Expected command to fail with invalid ID")
+	}
+
+	errorOutput := stderr.String()
+	if !strings.Contains(errorOutput, "invalid ID format") {
+		t.Errorf("Expected 'invalid ID format' in error output, got: %s", errorOutput)
+	}
+}
+
+func TestCLI_ApplyDocs_Integration(t *testing.T) {
+	if os.Getenv("PAPERLESS_URL") == "" || os.Getenv("PAPERLESS_TOKEN") == "" {
+		t.Skip("Skipping integration test - PAPERLESS_URL and PAPERLESS_TOKEN not set")
+	}
+
+	// Get Doc ID
+	listCmd := exec.Command("./pgo", "get", "docs")
+	listCmd.Env = append(os.Environ(), "PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"), "PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"))
+	var listStdout bytes.Buffer
+	listCmd.Stdout = &listStdout
+	listCmd.Stderr = os.Stderr
+	if err := listCmd.Run(); err != nil {
+		t.Fatalf("List docs failed: %v", err)
+	}
+
+	var docsResult DocumentListOutput
+	if err := json.Unmarshal(listStdout.Bytes(), &docsResult); err != nil {
+		t.Fatalf("Failed to parse list docs output: %v", err)
+	}
+	if len(docsResult.Results) == 0 {
+		t.Skip("No docs found")
+	}
+	docID := docsResult.Results[0].ID
+
+	// Get Tag ID
+	tagCmd := exec.Command("./pgo", "get", "tags")
+	tagCmd.Env = append(os.Environ(), "PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"), "PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"))
+	var tagStdout bytes.Buffer
+	tagCmd.Stdout = &tagStdout
+	tagCmd.Stderr = os.Stderr
+	if err := tagCmd.Run(); err != nil {
+		t.Fatalf("List tags failed: %v", err)
+	}
+
+	type TagListResult struct {
+		Results []struct {
+			ID int `json:"id"`
+		} `json:"results"`
+	}
+	var tagResult TagListResult
+	if err := json.Unmarshal(tagStdout.Bytes(), &tagResult); err != nil {
+		t.Fatalf("Failed to parse list tags output: %v", err)
+	}
+	if len(tagResult.Results) == 0 {
+		t.Skip("No tags found")
+	}
+	tagID := tagResult.Results[0].ID
+
+	// Apply
+	cmd := exec.Command("./pgo", "apply", "docs", fmt.Sprintf("%d", docID), "--tags="+fmt.Sprintf("%d", tagID))
+	cmd.Env = append(os.Environ(),
+		"PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"),
+		"PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"),
+	)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Apply command failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	var updated DocumentWithTagNames
+	if err := json.Unmarshal(stdout.Bytes(), &updated); err != nil {
+		t.Fatalf("Expected valid JSON output, got: %s", stdout.String())
+	}
+	if updated.ID != docID {
+		t.Errorf("Expected document ID %d, got %d", docID, updated.ID)
+	}
+}
+
+func TestCLI_AddTag_Integration(t *testing.T) {
+	if os.Getenv("PAPERLESS_URL") == "" || os.Getenv("PAPERLESS_TOKEN") == "" {
+		t.Skip("Skipping integration test - PAPERLESS_URL and PAPERLESS_TOKEN not set")
+	}
+
+	// Create unique tag name
+	tagName := "test-tag-" + time.Now().Format("20060102150405")
+
+	cmd := exec.Command("./pgo", "add", "tag", tagName)
+	cmd.Env = append(os.Environ(),
+		"PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"),
+		"PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"),
+	)
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	if err := cmd.Run(); err != nil {
+		t.Fatalf("Add tag command failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	var result struct {
+		ID   int    `json:"id"`
+		Name string `json:"name"`
+	}
+	if err := json.Unmarshal(stdout.Bytes(), &result); err != nil {
+		t.Fatalf("Expected valid JSON output, got: %s", stdout.String())
+	}
+	if result.Name != tagName {
+		t.Errorf("Expected tag name %s, got: %s", tagName, result.Name)
+	}
+	if result.ID == 0 {
+		t.Errorf("Expected non-zero tag ID")
 	}
 }

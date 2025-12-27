@@ -13,7 +13,7 @@ func (c *Client) ListDocuments(ctx context.Context, opts *ListOptions) (*Documen
 	}
 
 	var result DocumentList
-	if err := c.doRequestWithURL(ctx, "GET", fullURL, &result); err != nil {
+	if err := c.doRequestWithURL(ctx, "GET", fullURL, nil, &result); err != nil {
 		return nil, wrapError(err, "ListDocuments")
 	}
 
@@ -25,8 +25,20 @@ func (c *Client) GetDocument(ctx context.Context, id int) (*Document, error) {
 	path := fmt.Sprintf("/api/documents/%d/", id)
 
 	var result Document
-	if err := c.doRequest(ctx, "GET", path, &result); err != nil {
+	if err := c.doRequest(ctx, "GET", path, nil, &result); err != nil {
 		return nil, wrapError(err, "GetDocument")
+	}
+
+	return &result, nil
+}
+
+// UpdateDocument updates a document.
+func (c *Client) UpdateDocument(ctx context.Context, id int, update *DocumentUpdate) (*Document, error) {
+	path := fmt.Sprintf("/api/documents/%d/", id)
+
+	var result Document
+	if err := c.doRequest(ctx, "PATCH", path, update, &result); err != nil {
+		return nil, wrapError(err, "UpdateDocument")
 	}
 
 	return &result, nil

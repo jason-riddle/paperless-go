@@ -1,6 +1,7 @@
 package paperless
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"fmt"
@@ -55,14 +56,14 @@ func NewClient(baseURL, token string, opts ...Option) *Client {
 }
 
 // doRequest performs an HTTP request and decodes the JSON response.
-func (c *Client) doRequest(ctx context.Context, method, path string, result interface{}) error {
+func (c *Client) doRequest(ctx context.Context, method, path string, body interface{}, result interface{}) error {
 	u, err := url.Parse(c.baseURL)
 	if err != nil {
 		return fmt.Errorf("invalid base URL: %w", err)
 	}
 	u.Path = path
 
-	return c.doRequestWithURL(ctx, method, u.String(), result)
+	return c.doRequestWithURL(ctx, method, u.String(), body, result)
 }
 
 // wrapError wraps an error with an operation name if it's an API error.
@@ -112,14 +113,26 @@ func (c *Client) buildURL(path string, opts *ListOptions) (string, error) {
 
 // doRequestWithURL performs an HTTP request using a full URL and decodes the JSON response.
 // This is the common helper function used by both doRequest and direct calls.
-func (c *Client) doRequestWithURL(ctx context.Context, method, fullURL string, result interface{}) error {
-	req, err := http.NewRequestWithContext(ctx, method, fullURL, nil)
+func (c *Client) doRequestWithURL(ctx context.Context, method, fullURL string, body interface{}, result interface{}) error {
+	var bodyReader io.Reader
+	if body != nil {
+		jsonBody, err := json.Marshal(body)
+		if err != nil {
+			return fmt.Errorf("marshal request body: %w", err)
+		}
+		bodyReader = bytes.NewBuffer(jsonBody)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, method, fullURL, bodyReader)
 	if err != nil {
 		return fmt.Errorf("create request: %w", err)
 	}
 
 	req.Header.Set("Authorization", "Token "+c.token)
 	req.Header.Set("Accept", "application/json")
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
 
 	resp, err := c.httpClient.Do(req)
 	if err != nil {
@@ -127,7 +140,7 @@ func (c *Client) doRequestWithURL(ctx context.Context, method, fullURL string, r
 	}
 	defer resp.Body.Close()
 
-	body, err := io.ReadAll(resp.Body)
+	respBody, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("read response: %w", err)
 	}
@@ -135,12 +148,12 @@ func (c *Client) doRequestWithURL(ctx context.Context, method, fullURL string, r
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
 		return &Error{
 			StatusCode: resp.StatusCode,
-			Message:    string(body),
+			Message:    string(respBody),
 		}
 	}
 
 	if result != nil {
-		if err := json.Unmarshal(body, result); err != nil {
+		if err := json.Unmarshal(respBody, result); err != nil {
 			return fmt.Errorf("decode response: %w", err)
 		}
 	}

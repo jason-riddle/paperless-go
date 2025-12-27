@@ -62,7 +62,7 @@ func TestClient_doRequest(t *testing.T) {
 
 		c := NewClient(server.URL, "test-token")
 		var result map[string]string
-		err := c.doRequest(context.Background(), "GET", "/api/test/", &result)
+		err := c.doRequest(context.Background(), "GET", "/api/test/", nil, &result)
 		if err != nil {
 			t.Fatalf("doRequest failed: %v", err)
 		}
@@ -79,7 +79,7 @@ func TestClient_doRequest(t *testing.T) {
 		defer server.Close()
 
 		c := NewClient(server.URL, "test-token")
-		err := c.doRequest(context.Background(), "GET", "/api/test/", nil)
+		err := c.doRequest(context.Background(), "GET", "/api/test/", nil, nil)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -96,7 +96,7 @@ func TestClient_doRequest(t *testing.T) {
 		defer server.Close()
 
 		c := NewClient(server.URL, "test-token")
-		err := c.doRequest(context.Background(), "GET", "/api/test/", nil)
+		err := c.doRequest(context.Background(), "GET", "/api/test/", nil, nil)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -118,7 +118,7 @@ func TestClient_doRequest(t *testing.T) {
 
 		c := NewClient(server.URL, "test-token")
 		var result map[string]string
-		err := c.doRequest(context.Background(), "GET", "/api/test/", &result)
+		err := c.doRequest(context.Background(), "GET", "/api/test/", nil, &result)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}
@@ -134,7 +134,7 @@ func TestClient_doRequest(t *testing.T) {
 		c := NewClient(server.URL, "test-token")
 		ctx, cancel := context.WithCancel(context.Background())
 		cancel() // Cancel immediately
-		err := c.doRequest(ctx, "GET", "/api/test/", nil)
+		err := c.doRequest(ctx, "GET", "/api/test/", nil, nil)
 		if err == nil {
 			t.Fatal("expected error, got nil")
 		}

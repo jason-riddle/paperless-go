@@ -189,3 +189,92 @@ func TestIntegration_SearchDocuments(t *testing.T) {
 
 	t.Logf("Search for 'test' returned %d documents", searchResult.Count)
 }
+
+func TestIntegration_UpdateDocument(t *testing.T) {
+	client := getTestClient(t)
+	ctx := context.Background()
+
+	// Get a document to update
+	docs, err := client.ListDocuments(ctx, &paperless.ListOptions{PageSize: 1})
+	if err != nil {
+		t.Fatalf("ListDocuments failed: %v", err)
+	}
+	if len(docs.Results) == 0 {
+		t.Skip("No documents available, skipping UpdateDocument test")
+	}
+	docID := docs.Results[0].ID
+
+	// Get tags to use
+	tags, err := client.ListTags(ctx, &paperless.ListOptions{PageSize: 2})
+	if err != nil {
+		t.Fatalf("ListTags failed: %v", err)
+	}
+	if len(tags.Results) < 1 {
+		t.Skip("Not enough tags available, skipping UpdateDocument test")
+	}
+
+	newTagID := tags.Results[0].ID
+
+	// Update document
+	update := &paperless.DocumentUpdate{
+		Tags: []int{newTagID},
+	}
+	updatedDoc, err := client.UpdateDocument(ctx, docID, update)
+	if err != nil {
+		t.Fatalf("UpdateDocument failed: %v", err)
+	}
+
+	// Verify
+	found := false
+	for _, tagID := range updatedDoc.Tags {
+		if tagID == newTagID {
+			found = true
+			break
+		}
+	}
+	if !found {
+		t.Errorf("Updated document does not have tag %d", newTagID)
+	}
+}
+
+func TestIntegration_CreateTag(t *testing.T) {
+	client := getTestClient(t)
+	ctx := context.Background()
+
+	tagName := "integration-test-tag-" + time.Now().Format("20060102150405")
+	tagCreate := &paperless.TagCreate{
+		Name:  tagName,
+		Color: "#ff0000",
+	}
+
+	tag, err := client.CreateTag(ctx, tagCreate)
+	if err != nil {
+		t.Fatalf("CreateTag failed: %v", err)
+	}
+
+	if tag.Name != tagName {
+		t.Errorf("Expected tag name %s, got %s", tagName, tag.Name)
+	}
+
+	// Verify it exists in list
+	tags, err := client.ListTags(ctx, &paperless.ListOptions{
+		Query: tagName,
+	})
+	if err != nil {
+		t.Fatalf("ListTags failed: %v", err)
+	}
+
+	// Note: Query on tags might be filtering by name, checking results
+	found := false
+	for _, t := range tags.Results {
+		if t.ID == tag.ID {
+			found = true
+			break
+		}
+	}
+	// Depending on Paperless version/config, query might work differently or be delayed.
+	// We'll trust CreateTag return value primarily, but log if not found in list.
+	if !found {
+		t.Logf("Warning: Created tag not found in list immediately (might be indexing delay)")
+	}
+}

@@ -47,10 +47,11 @@ paperless-go is a minimal, well-designed Go client library for the Paperless-ngx
 
 When making changes:
 
-1. **Format code**: `go fmt ./...`
-2. **Run tests**: `go test -v -race ./...`
-3. **Run linters**: `make lint`
-4. **For integration tests**: `make integration-test-full`
+1. **Format code**: `go fmt ./...` (ALWAYS run this after modifying Go files)
+2. **Vet code**: `go vet ./...` (ALWAYS run this after modifying Go files)
+3. **Run tests**: `go test -v -race ./...`
+4. **Run linters**: `make lint`
+5. **For integration tests**: `make integration-test-full`
 
 ## Testing
 
@@ -76,6 +77,8 @@ The `pgo` CLI tool provides command-line access to Paperless-ngx:
 - `pgo get tags <id>` - Get a specific tag by ID
 - `pgo search docs <query>` - Search documents (use `-title-only` to search titles only)
 - `pgo search tags <query>` - Search tags
+- `pgo apply docs <id> --tags=<id1>,<id2>...` - Update tags for a document
+- `pgo add tag "<name>"` - Create a new tag
 - `pgo tagcache` - Print the cache file path (no authentication required)
 - `pgo doccache` - Print the doc cache file path (no authentication required)
 
@@ -109,11 +112,12 @@ The cache ensures that:
 ## API Coverage
 
 Current implementation:
-- ✅ Documents (list, get)
-- ✅ Tags (list, get)
+- ✅ Documents (list, get, update)
+- ✅ Tags (list, get, create)
 
 Future considerations:
-- Document creation, update, deletion
+- Document creation, deletion
+- Tag update, deletion
 - Correspondents, Document Types, Storage Paths
 - Saved Views, Tasks
 - File upload and download

@@ -201,3 +201,49 @@ func TestClient_GetDocument(t *testing.T) {
 		}
 	})
 }
+
+func TestClient_UpdateDocument(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		update := &DocumentUpdate{
+			Tags: []int{1, 2},
+		}
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/documents/1/" {
+				t.Errorf("path = %v, want /api/documents/1/", r.URL.Path)
+			}
+			if r.Method != "PATCH" {
+				t.Errorf("method = %v, want PATCH", r.Method)
+			}
+
+			// Verify body
+			var decoded DocumentUpdate
+			if err := json.NewDecoder(r.Body).Decode(&decoded); err != nil {
+				t.Fatalf("failed to decode request body: %v", err)
+			}
+			if len(decoded.Tags) != 2 || decoded.Tags[0] != 1 || decoded.Tags[1] != 2 {
+				t.Errorf("tags = %v, want [1, 2]", decoded.Tags)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(Document{
+				ID:    1,
+				Title: "Updated Document",
+				Tags:  []int{1, 2},
+			})
+		}))
+		defer server.Close()
+
+		c := NewClient(server.URL, "test-token")
+		doc, err := c.UpdateDocument(context.Background(), 1, update)
+		if err != nil {
+			t.Fatalf("UpdateDocument failed: %v", err)
+		}
+		if doc.ID != 1 {
+			t.Errorf("ID = %d, want 1", doc.ID)
+		}
+		if len(doc.Tags) != 2 {
+			t.Errorf("len(Tags) = %d, want 2", len(doc.Tags))
+		}
+	})
+}

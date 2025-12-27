@@ -13,7 +13,7 @@ func (c *Client) ListTags(ctx context.Context, opts *ListOptions) (*TagList, err
 	}
 
 	var result TagList
-	if err := c.doRequestWithURL(ctx, "GET", fullURL, &result); err != nil {
+	if err := c.doRequestWithURL(ctx, "GET", fullURL, nil, &result); err != nil {
 		return nil, wrapError(err, "ListTags")
 	}
 
@@ -25,8 +25,18 @@ func (c *Client) GetTag(ctx context.Context, id int) (*Tag, error) {
 	path := fmt.Sprintf("/api/tags/%d/", id)
 
 	var result Tag
-	if err := c.doRequest(ctx, "GET", path, &result); err != nil {
+	if err := c.doRequest(ctx, "GET", path, nil, &result); err != nil {
 		return nil, wrapError(err, "GetTag")
+	}
+
+	return &result, nil
+}
+
+// CreateTag creates a new tag.
+func (c *Client) CreateTag(ctx context.Context, tag *TagCreate) (*Tag, error) {
+	var result Tag
+	if err := c.doRequest(ctx, "POST", "/api/tags/", tag, &result); err != nil {
+		return nil, wrapError(err, "CreateTag")
 	}
 
 	return &result, nil

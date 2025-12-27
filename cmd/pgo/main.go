@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"strconv"
 	"strings"
 	"time"
 
@@ -92,7 +93,7 @@ func run() error {
 	// Parse command
 	args := flag.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  search docs <query> - Search documents (use -title-only to search titles only)\n  search tags <query> - Search tags\n  tagcache - Print the tag cache file path\n  doccache - Print the doc cache file path")
+		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  search docs <query> - Search documents (use -title-only to search titles only)\n  search tags <query> - Search tags\n  apply docs <id> --tags=<id1>,<id2>... - Update tags for a document\n  add tag \"<name>\" - Create a new tag\n  tagcache - Print the tag cache file path\n  doccache - Print the doc cache file path")
 	}
 
 	command := args[0]
@@ -123,6 +124,113 @@ func run() error {
 	}
 	if *token == "" {
 		return fmt.Errorf("API token is required (use -token flag or PAPERLESS_TOKEN env var)")
+	}
+
+	if command == "apply" {
+		if len(args) < 3 {
+			return fmt.Errorf("usage: pgo apply docs <id> --tags=<id1>,<id2>...")
+		}
+
+		resource := args[1]
+		if resource != "docs" {
+			return fmt.Errorf("unknown resource for apply: %s", resource)
+		}
+
+		// Parse ID and flags
+		var id int
+		var tagsStr string
+
+		// First argument after resource MUST be ID
+		if _, err := fmt.Sscanf(args[2], "%d", &id); err != nil {
+			return fmt.Errorf("invalid ID format: %s", args[2])
+		}
+
+		// Loop through remaining args to find flags
+		for _, arg := range args[3:] {
+			if strings.HasPrefix(arg, "--tags=") {
+				tagsStr = strings.TrimPrefix(arg, "--tags=")
+			}
+		}
+
+		if tagsStr == "" {
+			return fmt.Errorf("missing required flag: --tags")
+		}
+
+		// Parse tags
+		var tagIDs []int
+		if tagsStr != "" {
+			parts := strings.Split(tagsStr, ",")
+			for _, p := range parts {
+				tid, err := strconv.Atoi(strings.TrimSpace(p))
+				if err != nil {
+					return fmt.Errorf("invalid tag ID: %s", p)
+				}
+				tagIDs = append(tagIDs, tid)
+			}
+		}
+
+		// Create client
+		client := paperless.NewClient(*baseURL, *token)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Call update
+		update := &paperless.DocumentUpdate{
+			Tags: tagIDs,
+		}
+
+		doc, err := client.UpdateDocument(ctx, id, update)
+		if err != nil {
+			return fmt.Errorf("failed to update document: %w", err)
+		}
+
+		tagNames, err := getTagNamesWithCache(ctx, client, *forceRefresh, DefaultCacheTTL)
+		if err != nil {
+			fmt.Fprintf(os.Stderr, "Warning: Could not fetch tags for name resolution: %v\n", err)
+			tagNames = make(map[int]string)
+		}
+
+		output := convertDocToOutput(doc, tagNames)
+		if err := outputJSON(output); err != nil {
+			return fmt.Errorf("failed to output JSON: %w", err)
+		}
+		return nil
+	}
+
+	if command == "add" {
+		if len(args) < 2 {
+			return fmt.Errorf("usage: pgo add <resource> [args]\nAvailable resources:\n  tag \"<name>\" - Create a new tag")
+		}
+
+		resource := args[1]
+		if resource != "tag" {
+			return fmt.Errorf("unknown resource for add: %s", resource)
+		}
+
+		if len(args) < 3 {
+			return fmt.Errorf("usage: pgo add tag \"<name>\"")
+		}
+		tagName := args[2]
+
+		// Create client
+		client := paperless.NewClient(*baseURL, *token)
+		ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+		defer cancel()
+
+		// Create tag
+		tagCreate := &paperless.TagCreate{
+			Name: tagName,
+		}
+
+		tag, err := client.CreateTag(ctx, tagCreate)
+		if err != nil {
+			return fmt.Errorf("failed to create tag: %w", err)
+		}
+
+		if err := outputJSON(tag); err != nil {
+			return fmt.Errorf("failed to output JSON: %w", err)
+		}
+		return nil
 	}
 
 	if command != "get" && command != "search" {

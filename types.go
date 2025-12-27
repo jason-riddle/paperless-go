@@ -101,3 +101,15 @@ type ListOptions struct {
 	// For other resources this option is ignored.
 	TitleOnly bool
 }
+
+// DocumentUpdate represents fields to update on a document.
+type DocumentUpdate struct {
+	Tags []int `json:"tags,omitempty"`
+}
+
+// TagCreate represents fields to create a new tag.
+type TagCreate struct {
+	Name  string `json:"name"`
+	Color string `json:"color,omitempty"`
+	Slug  string `json:"slug,omitempty"`
+}
