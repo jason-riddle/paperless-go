@@ -32,6 +32,7 @@ paperless-go is a minimal, well-designed Go client library for the Paperless-ngx
 .
 ├── cmd/
 │   └── pgo/          # CLI tool for interacting with Paperless
+│   └── pgo-rag/      # RAG CLI tool (separate module, has deps)
 ├── .github/
 │   ├── workflows/    # GitHub Actions workflows
 │   └── copilot-instructions.md
@@ -81,8 +82,17 @@ The `pgo` CLI tool provides command-line access to Paperless-ngx:
 - `pgo add tag "<name>"` - Create a new tag
 - `pgo tagcache` - Print the cache file path (no authentication required)
 - `pgo doccache` - Print the doc cache file path (no authentication required)
+- `pgo rag <args>` - Invoke `pgo-rag` if installed in PATH
 
 All commands return JSON output by default. Document output includes both tag IDs and resolved tag names for convenience.
+
+## CLI Tool (pgo-rag)
+
+The `pgo-rag` CLI tool provides local RAG indexing and search:
+
+- Built in `cmd/pgo-rag/` (separate module with its own `go.mod`)
+- Uses the paperless-go library
+- Uses SQLite + embeddings client (dependencies are isolated from the root module)
 
 ### CLI Flags
 
