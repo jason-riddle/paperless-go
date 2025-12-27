@@ -6,10 +6,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 )
 
-// Client is an HTTP client for OpenAI-compatible embeddings API (OpenRouter or Ollama)
+// Client is an HTTP client for an OpenAI-compatible embeddings API.
 type Client struct {
 	apiKey  string
 	model   string
@@ -17,38 +18,28 @@ type Client struct {
 	client  *http.Client
 }
 
-// NewClient creates a new embeddings client for OpenRouter
-func NewClient(apiKey, model string) *Client {
+// NewClient creates a new embeddings client with the provided base URL.
+func NewClient(baseURL, apiKey, model string) *Client {
 	return &Client{
 		apiKey:  apiKey,
 		model:   model,
-		baseURL: "https://openrouter.ai/api/v1",
-		client:  &http.Client{Timeout: 60 * time.Second},
-	}
-}
-
-// NewClientWithBaseURL creates a new embeddings client with a custom base URL.
-func NewClientWithBaseURL(apiKey, model, baseURL string) *Client {
-	return &Client{
-		apiKey:  apiKey,
-		model:   model,
-		baseURL: baseURL,
-		client:  &http.Client{Timeout: 60 * time.Second},
-	}
-}
-
-// NewOllamaClient creates a new embeddings client for Ollama
-func NewOllamaClient(baseURL, model string) *Client {
-	return &Client{
-		apiKey:  "", // Ollama doesn't require API key
-		model:   model,
-		baseURL: baseURL,
+		baseURL: strings.TrimRight(baseURL, "/"),
 		client:  &http.Client{Timeout: 60 * time.Second},
 	}
 }
 
 // GenerateEmbedding generates an embedding vector for the given text
 func (c *Client) GenerateEmbedding(text string) ([]float32, error) {
+	if strings.TrimSpace(c.apiKey) == "" {
+		return nil, fmt.Errorf("api key is required")
+	}
+	if strings.TrimSpace(c.baseURL) == "" {
+		return nil, fmt.Errorf("base URL is required")
+	}
+	if strings.TrimSpace(c.model) == "" {
+		return nil, fmt.Errorf("model is required")
+	}
+
 	// Prepare request body
 	reqBody := EmbeddingRequest{
 		Model: c.model,
@@ -67,10 +58,7 @@ func (c *Client) GenerateEmbedding(text string) ([]float32, error) {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}
 
-	// Set authorization header only if API key is provided (not needed for Ollama)
-	if c.apiKey != "" {
-		req.Header.Set("Authorization", "Bearer "+c.apiKey)
-	}
+	req.Header.Set("Authorization", "Bearer "+c.apiKey)
 	req.Header.Set("Content-Type", "application/json")
 
 	// Execute request with retry logic

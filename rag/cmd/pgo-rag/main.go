@@ -21,11 +21,11 @@ Usage:
   pgo-rag search  -db <path> -query <text> [-limit 10] [-threshold 0.7]
 
 Global flags:
-  -url           Paperless instance URL (or PAPERLESS_URL)
-  -token         Paperless API token (or PAPERLESS_TOKEN)
-  -embedder-url  Embeddings API base URL (or PGO_RAG_EMBEDDER_URL)
-  -embedder-key  Embeddings API key (or PGO_RAG_EMBEDDER_KEY)
-  -embedder-model Embeddings model name (or PGO_RAG_EMBEDDER_MODEL)
+  -url             Paperless instance URL (or PAPERLESS_URL)
+  -token           Paperless API token (or PAPERLESS_TOKEN)
+  -embeddings-url  Embeddings API base URL (or PGO_RAG_EMBEDDINGS_URL)
+  -embeddings-key  Embeddings API key (or PGO_RAG_EMBEDDINGS_KEY)
+  -embeddings-model Embeddings model name (or PGO_RAG_EMBEDDINGS_MODEL)
 `
 
 func main() {
@@ -66,9 +66,9 @@ func runBuild(ctx context.Context, args []string) error {
 	url := flags.String("url", os.Getenv("PAPERLESS_URL"), "Paperless URL")
 	token := flags.String("token", os.Getenv("PAPERLESS_TOKEN"), "Paperless token")
 	pageSize := flags.Int("page-size", 100, "Paperless page size")
-	embedderURL := flags.String("embedder-url", getenvDefault("PGO_RAG_EMBEDDER_URL", "http://localhost:11434/v1"), "Embeddings API base URL")
-	embedderKey := flags.String("embedder-key", os.Getenv("PGO_RAG_EMBEDDER_KEY"), "Embeddings API key")
-	embedderModel := flags.String("embedder-model", getenvDefault("PGO_RAG_EMBEDDER_MODEL", "nomic-embed-text"), "Embeddings model")
+	embeddingsURL := flags.String("embeddings-url", os.Getenv("PGO_RAG_EMBEDDINGS_URL"), "Embeddings API base URL")
+	embeddingsKey := flags.String("embeddings-key", os.Getenv("PGO_RAG_EMBEDDINGS_KEY"), "Embeddings API key")
+	embeddingsModel := flags.String("embeddings-model", os.Getenv("PGO_RAG_EMBEDDINGS_MODEL"), "Embeddings model")
 
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -83,11 +83,14 @@ func runBuild(ctx context.Context, args []string) error {
 	if *token == "" {
 		return fmt.Errorf("-token is required")
 	}
-	if *embedderURL == "" {
-		return fmt.Errorf("-embedder-url is required")
+	if *embeddingsURL == "" {
+		return fmt.Errorf("-embeddings-url is required")
 	}
-	if *embedderModel == "" {
-		return fmt.Errorf("-embedder-model is required")
+	if *embeddingsKey == "" {
+		return fmt.Errorf("-embeddings-key is required")
+	}
+	if *embeddingsModel == "" {
+		return fmt.Errorf("-embeddings-model is required")
 	}
 
 	db, err := storage.NewDB(*dbPath)
@@ -97,7 +100,7 @@ func runBuild(ctx context.Context, args []string) error {
 	defer db.Close()
 
 	client := paperless.NewClient(*url, *token)
-	embedder := newEmbedder(*embedderURL, *embedderKey, *embedderModel)
+	embedder := embedding.NewClient(*embeddingsURL, *embeddingsKey, *embeddingsModel)
 
 	start := time.Now()
 	summary, err := indexer.BuildIndex(ctx, client, db, embedder, indexer.BuildOptions{PageSize: *pageSize})
@@ -124,9 +127,9 @@ func runSearch(ctx context.Context, args []string) error {
 	query := flags.String("query", "", "Search query")
 	limit := flags.Int("limit", 10, "Max results")
 	threshold := flags.Float64("threshold", 0.7, "Similarity threshold")
-	embedderURL := flags.String("embedder-url", getenvDefault("PGO_RAG_EMBEDDER_URL", "http://localhost:11434/v1"), "Embeddings API base URL")
-	embedderKey := flags.String("embedder-key", os.Getenv("PGO_RAG_EMBEDDER_KEY"), "Embeddings API key")
-	embedderModel := flags.String("embedder-model", getenvDefault("PGO_RAG_EMBEDDER_MODEL", "nomic-embed-text"), "Embeddings model")
+	embeddingsURL := flags.String("embeddings-url", os.Getenv("PGO_RAG_EMBEDDINGS_URL"), "Embeddings API base URL")
+	embeddingsKey := flags.String("embeddings-key", os.Getenv("PGO_RAG_EMBEDDINGS_KEY"), "Embeddings API key")
+	embeddingsModel := flags.String("embeddings-model", os.Getenv("PGO_RAG_EMBEDDINGS_MODEL"), "Embeddings model")
 
 	if err := flags.Parse(args); err != nil {
 		return err
@@ -144,11 +147,14 @@ func runSearch(ctx context.Context, args []string) error {
 	if *threshold < 0 || *threshold > 1 {
 		return fmt.Errorf("-threshold must be between 0 and 1")
 	}
-	if *embedderURL == "" {
-		return fmt.Errorf("-embedder-url is required")
+	if *embeddingsURL == "" {
+		return fmt.Errorf("-embeddings-url is required")
 	}
-	if *embedderModel == "" {
-		return fmt.Errorf("-embedder-model is required")
+	if *embeddingsKey == "" {
+		return fmt.Errorf("-embeddings-key is required")
+	}
+	if *embeddingsModel == "" {
+		return fmt.Errorf("-embeddings-model is required")
 	}
 
 	db, err := storage.NewDB(*dbPath)
@@ -157,7 +163,7 @@ func runSearch(ctx context.Context, args []string) error {
 	}
 	defer db.Close()
 
-	embedder := newEmbedder(*embedderURL, *embedderKey, *embedderModel)
+	embedder := embedding.NewClient(*embeddingsURL, *embeddingsKey, *embeddingsModel)
 
 	summary, err := indexer.SearchIndex(ctx, db, embedder, *query, *limit, *threshold)
 	if err != nil {
@@ -167,22 +173,8 @@ func runSearch(ctx context.Context, args []string) error {
 	return writeJSON(summary)
 }
 
-func newEmbedder(baseURL, apiKey, model string) indexer.Embedder {
-	if apiKey == "" {
-		return embedding.NewOllamaClient(baseURL, model)
-	}
-	return embedding.NewClientWithBaseURL(apiKey, model, baseURL)
-}
-
 func writeJSON(value interface{}) error {
 	enc := json.NewEncoder(os.Stdout)
 	enc.SetIndent("", "  ")
 	return enc.Encode(value)
-}
-
-func getenvDefault(key, fallback string) string {
-	if value := os.Getenv(key); value != "" {
-		return value
-	}
-	return fallback
 }

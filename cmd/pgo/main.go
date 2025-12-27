@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 	"time"
@@ -93,7 +94,7 @@ func run() error {
 	// Parse command
 	args := flag.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  search docs <query> - Search documents (use -title-only to search titles only)\n  search tags <query> - Search tags\n  apply docs <id> --tags=<id1>,<id2>... - Update tags for a document\n  add tag \"<name>\" - Create a new tag\n  tagcache - Print the tag cache file path\n  doccache - Print the doc cache file path")
+		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  search docs <query> - Search documents (use -title-only to search titles only)\n  search tags <query> - Search tags\n  apply docs <id> --tags=<id1>,<id2>... - Update tags for a document\n  add tag \"<name>\" - Create a new tag\n  rag <args> - Run pgo-rag (RAG indexing/search)\n  tagcache - Print the tag cache file path\n  doccache - Print the doc cache file path")
 	}
 
 	command := args[0]
@@ -116,6 +117,10 @@ func run() error {
 		}
 		fmt.Println(cachePath)
 		return nil
+	}
+
+	if command == "rag" {
+		return runRag(args[1:])
 	}
 
 	// Check for required arguments for API commands
@@ -377,4 +382,18 @@ func run() error {
 	}
 
 	return nil
+}
+
+func runRag(args []string) error {
+	path, err := exec.LookPath("pgo-rag")
+	if err != nil {
+		return fmt.Errorf("pgo-rag not found in PATH; build it with: (cd rag && go build ./cmd/pgo-rag)")
+	}
+
+	cmd := exec.Command(path, args...)
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = os.Stderr
+	cmd.Stdin = os.Stdin
+
+	return cmd.Run()
 }

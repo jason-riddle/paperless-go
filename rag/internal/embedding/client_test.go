@@ -8,7 +8,7 @@ import (
 )
 
 func TestNewClient(t *testing.T) {
-	var client = NewClient("test-key", "test-model")
+	var client = NewClient("http://localhost:9999", "test-key", "test-model")
 
 	if client == nil {
 		t.Fatal("Client is nil")
@@ -22,52 +22,12 @@ func TestNewClient(t *testing.T) {
 		t.Errorf("Expected model 'test-model', got '%s'", client.model)
 	}
 
-	if client.baseURL != "https://openrouter.ai/api/v1" {
-		t.Errorf("Expected baseURL 'https://openrouter.ai/api/v1', got '%s'", client.baseURL)
+	if client.baseURL != "http://localhost:9999" {
+		t.Errorf("Expected baseURL 'http://localhost:9999', got '%s'", client.baseURL)
 	}
 
 	if client.client == nil {
 		t.Error("HTTP client is nil")
-	}
-}
-
-func TestNewClientWithBaseURL(t *testing.T) {
-	var client = NewClientWithBaseURL("test-key", "test-model", "http://localhost:1234")
-
-	if client == nil {
-		t.Fatal("Client is nil")
-	}
-
-	if client.apiKey != "test-key" {
-		t.Errorf("Expected apiKey 'test-key', got '%s'", client.apiKey)
-	}
-
-	if client.model != "test-model" {
-		t.Errorf("Expected model 'test-model', got '%s'", client.model)
-	}
-
-	if client.baseURL != "http://localhost:1234" {
-		t.Errorf("Expected baseURL 'http://localhost:1234', got '%s'", client.baseURL)
-	}
-}
-
-func TestNewOllamaClient(t *testing.T) {
-	var client = NewOllamaClient("http://localhost:11434/v1", "nomic-embed-text")
-
-	if client == nil {
-		t.Fatal("Client is nil")
-	}
-
-	if client.apiKey != "" {
-		t.Errorf("Expected empty apiKey for Ollama, got '%s'", client.apiKey)
-	}
-
-	if client.model != "nomic-embed-text" {
-		t.Errorf("Expected model 'nomic-embed-text', got '%s'", client.model)
-	}
-
-	if client.baseURL != "http://localhost:11434/v1" {
-		t.Errorf("Expected baseURL 'http://localhost:11434/v1', got '%s'", client.baseURL)
 	}
 }
 
@@ -137,42 +97,6 @@ func TestGenerateEmbeddingSuccess(t *testing.T) {
 	}
 }
 
-func TestGenerateEmbeddingOllamaNoAuth(t *testing.T) {
-	var server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		var authHeader = r.Header.Get("Authorization")
-		if authHeader != "" {
-			t.Errorf("Expected no Authorization header for Ollama, got '%s'", authHeader)
-		}
-
-		var response = EmbeddingResponse{
-			Data: []struct {
-				Embedding []float32 `json:"embedding"`
-				Index     int       `json:"index"`
-			}{
-				{
-					Embedding: []float32{0.5, 0.6},
-					Index:     0,
-				},
-			},
-			Model: "nomic-embed-text",
-		}
-
-		w.Header().Set("Content-Type", "application/json")
-		json.NewEncoder(w).Encode(response)
-	}))
-	defer server.Close()
-
-	var client = NewOllamaClient(server.URL, "nomic-embed-text")
-	var embedding, err = client.GenerateEmbedding("test text")
-	if err != nil {
-		t.Fatalf("Failed to generate embedding: %v", err)
-	}
-
-	if len(embedding) != 2 {
-		t.Errorf("Expected 2 dimensions, got %d", len(embedding))
-	}
-}
-
 func TestGenerateEmbeddingAPIError(t *testing.T) {
 	var server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -229,6 +153,31 @@ func TestGenerateEmbeddingEmptyResponse(t *testing.T) {
 	var _, err = client.GenerateEmbedding("test text")
 	if err == nil {
 		t.Error("Expected error for empty response data, got nil")
+	}
+}
+
+func TestGenerateEmbeddingMissingConfig(t *testing.T) {
+	client := &Client{
+		apiKey:  "",
+		model:   "model",
+		baseURL: "http://localhost",
+		client:  &http.Client{},
+	}
+
+	if _, err := client.GenerateEmbedding("test"); err == nil {
+		t.Fatalf("expected error for missing api key")
+	}
+
+	client.apiKey = "key"
+	client.baseURL = ""
+	if _, err := client.GenerateEmbedding("test"); err == nil {
+		t.Fatalf("expected error for missing base URL")
+	}
+
+	client.baseURL = "http://localhost"
+	client.model = ""
+	if _, err := client.GenerateEmbedding("test"); err == nil {
+		t.Fatalf("expected error for missing model")
 	}
 }
 

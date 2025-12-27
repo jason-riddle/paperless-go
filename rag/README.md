@@ -30,9 +30,8 @@ go build ./cmd/pgo-rag
 
 ## Embeddings configuration
 
-`pgo-rag` uses an OpenAI-compatible embeddings endpoint (for example, Ollama).
-Defaults target a local Ollama instance:
+`pgo-rag` uses an OpenAI-compatible embeddings endpoint.
 
-- `PGO_RAG_EMBEDDER_URL` (default: `http://localhost:11434/v1`)
-- `PGO_RAG_EMBEDDER_MODEL` (default: `nomic-embed-text`)
-- `PGO_RAG_EMBEDDER_KEY` (optional API key)
+- `PGO_RAG_EMBEDDINGS_URL` (required)
+- `PGO_RAG_EMBEDDINGS_KEY` (required)
+- `PGO_RAG_EMBEDDINGS_MODEL` (required)

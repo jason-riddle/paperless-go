@@ -5,7 +5,7 @@ import (
 )
 
 func TestNewService(t *testing.T) {
-	var client = NewClient("test-key", "test-model")
+	var client = NewClient("http://localhost:9999", "test-key", "test-model")
 	var service = NewService(client)
 
 	if service == nil {
@@ -18,7 +18,7 @@ func TestNewService(t *testing.T) {
 }
 
 func TestServiceGenerateEmbeddingEmptyText(t *testing.T) {
-	var client = NewClient("test-key", "test-model")
+	var client = NewClient("http://localhost:9999", "test-key", "test-model")
 	var service = NewService(client)
 
 	var _, err = service.GenerateEmbedding("")

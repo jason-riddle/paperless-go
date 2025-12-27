@@ -206,6 +206,28 @@ func TestCLI_InvalidCommand(t *testing.T) {
 	}
 }
 
+func TestCLI_RagMissingBinary(t *testing.T) {
+	cmd := exec.Command("./pgo", "rag", "help")
+	cmd.Env = append(os.Environ(),
+		"PAPERLESS_URL=dummy",
+		"PAPERLESS_TOKEN=dummy",
+	)
+
+	var stderr bytes.Buffer
+	cmd.Stdout = os.Stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err == nil {
+		t.Errorf("Expected command to fail when pgo-rag is missing")
+	}
+
+	errorOutput := stderr.String()
+	if !strings.Contains(errorOutput, "pgo-rag not found") {
+		t.Errorf("Expected 'pgo-rag not found' in error output, got: %s", errorOutput)
+	}
+}
+
 func TestCLI_InvalidResource(t *testing.T) {
 	cmd := exec.Command("./pgo", "get", "invalid")
 	cmd.Env = append(os.Environ(),

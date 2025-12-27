@@ -3,8 +3,6 @@ package embedding
 import (
 	"fmt"
 	"log/slog"
-
-	"github.com/jason-riddle/paperless-go/rag/internal/metrics"
 )
 
 // Service provides embedding generation with additional logic
@@ -22,7 +20,6 @@ func NewService(client *Client) *Service {
 // GenerateEmbedding generates an embedding for the given text
 func (s *Service) GenerateEmbedding(text string) ([]float32, error) {
 	if text == "" {
-		metrics.EmbeddingsFailedTotal.Add(1)
 		return nil, fmt.Errorf("text cannot be empty")
 	}
 
@@ -30,11 +27,9 @@ func (s *Service) GenerateEmbedding(text string) ([]float32, error) {
 
 	vector, err := s.client.GenerateEmbedding(text)
 	if err != nil {
-		metrics.EmbeddingsFailedTotal.Add(1)
 		return nil, fmt.Errorf("failed to generate embedding: %w", err)
 	}
 
-	metrics.EmbeddingsGeneratedTotal.Add(1)
 	slog.Debug("Generated embedding", "dimensions", len(vector))
 	return vector, nil
 }
