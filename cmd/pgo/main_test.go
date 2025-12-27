@@ -438,6 +438,26 @@ func TestCLI_TagCache(t *testing.T) {
 	}
 }
 
+func TestCLI_TagCache_PathSubcommand(t *testing.T) {
+	cmd := exec.Command("./pgo", "tagcache", "path")
+	// No env vars needed - tagcache path doesn't require auth
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		t.Fatalf("CLI command failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	output := stdout.String()
+	if !strings.HasSuffix(strings.TrimSpace(output), "tags.json") {
+		t.Errorf("Expected output to end with 'tags.json', got: %s", output)
+	}
+}
+
 func TestCLI_TagCache_WithCustomXDG(t *testing.T) {
 	cmd := exec.Command("./pgo", "tagcache")
 	cmd.Env = append(os.Environ(), "XDG_CACHE_HOME=/tmp/test-cache")
@@ -456,6 +476,145 @@ func TestCLI_TagCache_WithCustomXDG(t *testing.T) {
 	expected := "/tmp/test-cache/paperless-go/tags.json"
 	if output != expected {
 		t.Errorf("Expected output to be %s, got: %s", expected, output)
+	}
+}
+
+func TestCLI_TagCacheBuild(t *testing.T) {
+	if os.Getenv("PAPERLESS_URL") == "" || os.Getenv("PAPERLESS_TOKEN") == "" {
+		t.Skip("Skipping integration test - PAPERLESS_URL and PAPERLESS_TOKEN not set")
+	}
+
+	cmd := exec.Command("./pgo", "tagcache", "build")
+	cmd.Env = append(os.Environ(),
+		"PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"),
+		"PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"),
+	)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		t.Fatalf("CLI command failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	var output CacheBuildOutput
+	if err := json.Unmarshal(stdout.Bytes(), &output); err != nil {
+		t.Fatalf("Expected valid JSON output, got: %s", stdout.String())
+	}
+
+	if !strings.HasSuffix(output.Path, "tags.json") {
+		t.Errorf("Expected path to end with 'tags.json', got: %s", output.Path)
+	}
+	if output.Entries < 0 {
+		t.Errorf("Expected entries to be non-negative, got: %d", output.Entries)
+	}
+	if _, err := time.Parse(time.RFC3339, output.FetchedAt); err != nil {
+		t.Errorf("Expected fetched_at to be RFC3339, got: %s", output.FetchedAt)
+	}
+}
+
+func TestCLI_DocCache(t *testing.T) {
+	cmd := exec.Command("./pgo", "doccache")
+	// No env vars needed - doccache doesn't require auth
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		t.Fatalf("CLI command failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	output := stdout.String()
+	if !strings.HasSuffix(strings.TrimSpace(output), "docs.json") {
+		t.Errorf("Expected output to end with 'docs.json', got: %s", output)
+	}
+
+	if !strings.Contains(output, "paperless-go") {
+		t.Errorf("Expected output to contain 'paperless-go', got: %s", output)
+	}
+}
+
+func TestCLI_DocCache_PathSubcommand(t *testing.T) {
+	cmd := exec.Command("./pgo", "doccache", "path")
+	// No env vars needed - doccache path doesn't require auth
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		t.Fatalf("CLI command failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	output := stdout.String()
+	if !strings.HasSuffix(strings.TrimSpace(output), "docs.json") {
+		t.Errorf("Expected output to end with 'docs.json', got: %s", output)
+	}
+}
+
+func TestCLI_DocCache_WithCustomXDG(t *testing.T) {
+	cmd := exec.Command("./pgo", "doccache")
+	cmd.Env = append(os.Environ(), "XDG_CACHE_HOME=/tmp/test-cache")
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		t.Fatalf("CLI command failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	output := strings.TrimSpace(stdout.String())
+	expected := "/tmp/test-cache/paperless-go/docs.json"
+	if output != expected {
+		t.Errorf("Expected output to be %s, got: %s", expected, output)
+	}
+}
+
+func TestCLI_DocCacheBuild(t *testing.T) {
+	if os.Getenv("PAPERLESS_URL") == "" || os.Getenv("PAPERLESS_TOKEN") == "" {
+		t.Skip("Skipping integration test - PAPERLESS_URL and PAPERLESS_TOKEN not set")
+	}
+
+	cmd := exec.Command("./pgo", "doccache", "build")
+	cmd.Env = append(os.Environ(),
+		"PAPERLESS_URL="+os.Getenv("PAPERLESS_URL"),
+		"PAPERLESS_TOKEN="+os.Getenv("PAPERLESS_TOKEN"),
+	)
+
+	var stdout bytes.Buffer
+	var stderr bytes.Buffer
+	cmd.Stdout = &stdout
+	cmd.Stderr = &stderr
+
+	err := cmd.Run()
+	if err != nil {
+		t.Fatalf("CLI command failed: %v, stderr: %s", err, stderr.String())
+	}
+
+	var output CacheBuildOutput
+	if err := json.Unmarshal(stdout.Bytes(), &output); err != nil {
+		t.Fatalf("Expected valid JSON output, got: %s", stdout.String())
+	}
+
+	if !strings.HasSuffix(output.Path, "docs.json") {
+		t.Errorf("Expected path to end with 'docs.json', got: %s", output.Path)
+	}
+	if output.Entries < 0 {
+		t.Errorf("Expected entries to be non-negative, got: %d", output.Entries)
+	}
+	if _, err := time.Parse(time.RFC3339, output.FetchedAt); err != nil {
+		t.Errorf("Expected fetched_at to be RFC3339, got: %s", output.FetchedAt)
 	}
 }
 

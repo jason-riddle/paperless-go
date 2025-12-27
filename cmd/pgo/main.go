@@ -34,6 +34,14 @@ type DocumentListOutput struct {
 	Results []DocumentWithTagNames `json:"results"`
 }
 
+// CacheBuildOutput represents the output for cache build commands
+type CacheBuildOutput struct {
+	Path      string `json:"path"`
+	Entries   int    `json:"entries"`
+	FetchedAt string `json:"fetched_at"`
+	InMemory  bool   `json:"in_memory"`
+}
+
 // convertDocToOutput converts a paperless.Document to DocumentWithTagNames
 func convertDocToOutput(doc *paperless.Document, tagNames map[int]string) DocumentWithTagNames {
 	tagNamesList := make([]string, len(doc.Tags))
@@ -94,29 +102,135 @@ func run() error {
 	// Parse command
 	args := flag.Args()
 	if len(args) == 0 {
-		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  search docs <query> - Search documents (use -title-only to search titles only)\n  search tags <query> - Search tags\n  apply docs <id> --tags=<id1>,<id2>... - Update tags for a document\n  add tag \"<name>\" - Create a new tag\n  rag <args> - Run pgo-rag (RAG indexing/search)\n  tagcache - Print the tag cache file path\n  doccache - Print the doc cache file path")
+		return fmt.Errorf("usage: pgo <command> [args]\nAvailable commands:\n  get docs - List documents\n  get docs <id> - Get specific document\n  get tags - List tags\n  get tags <id> - Get specific tag\n  search docs <query> - Search documents (use -title-only to search titles only)\n  search tags <query> - Search tags\n  apply docs <id> --tags=<id1>,<id2>... - Update tags for a document\n  add tag \"<name>\" - Create a new tag\n  rag <args> - Run pgo-rag (RAG indexing/search)\n  tagcache [path|build] - Print or build the tag cache\n  doccache [path|build] - Print or build the doc cache")
 	}
 
 	command := args[0]
 
-	// Handle tagcache command (no auth required)
+	// Handle tagcache command
 	if command == "tagcache" {
-		cachePath, err := getCacheFilePath()
-		if err != nil {
-			return fmt.Errorf("failed to get cache file path: %w", err)
+		subcommand := ""
+		if len(args) > 1 {
+			subcommand = args[1]
 		}
-		fmt.Println(cachePath)
-		return nil
+
+		switch subcommand {
+		case "", "path":
+			if len(args) > 2 {
+				return fmt.Errorf("usage: pgo tagcache [path|build]")
+			}
+			cachePath, err := getCacheFilePath()
+			if err != nil {
+				return fmt.Errorf("failed to get cache file path: %w", err)
+			}
+			fmt.Println(cachePath)
+			return nil
+		case "build":
+			if len(args) > 2 {
+				return fmt.Errorf("usage: pgo tagcache [path|build]")
+			}
+			if *baseURL == "" {
+				return fmt.Errorf("paperless URL is required (use -url flag or PAPERLESS_URL env var)")
+			}
+			if *token == "" {
+				return fmt.Errorf("API token is required (use -token flag or PAPERLESS_TOKEN env var)")
+			}
+
+			client := paperless.NewClient(*baseURL, *token)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			tagNames, err := getTagNamesWithCache(ctx, client, true, DefaultCacheTTL)
+			if err != nil {
+				return fmt.Errorf("failed to build tag cache: %w", err)
+			}
+
+			cachePath, err := getCacheFilePath()
+			if err != nil {
+				return fmt.Errorf("failed to get cache file path: %w", err)
+			}
+
+			fetchedAt := time.Now()
+			if cache, err := loadTagCache(); err == nil && cache != nil {
+				fetchedAt = cache.FetchedAt
+			}
+
+			output := CacheBuildOutput{
+				Path:      cachePath,
+				Entries:   len(tagNames),
+				FetchedAt: fetchedAt.Format(time.RFC3339),
+				InMemory:  useInMemoryCache,
+			}
+			if err := outputJSON(output); err != nil {
+				return fmt.Errorf("failed to output JSON: %w", err)
+			}
+			return nil
+		default:
+			return fmt.Errorf("usage: pgo tagcache [path|build]")
+		}
 	}
 
-	// Handle doccache command (no auth required)
+	// Handle doccache command
 	if command == "doccache" {
-		cachePath, err := getDocCacheFilePath()
-		if err != nil {
-			return fmt.Errorf("failed to get doc cache file path: %w", err)
+		subcommand := ""
+		if len(args) > 1 {
+			subcommand = args[1]
 		}
-		fmt.Println(cachePath)
-		return nil
+
+		switch subcommand {
+		case "", "path":
+			if len(args) > 2 {
+				return fmt.Errorf("usage: pgo doccache [path|build]")
+			}
+			cachePath, err := getDocCacheFilePath()
+			if err != nil {
+				return fmt.Errorf("failed to get doc cache file path: %w", err)
+			}
+			fmt.Println(cachePath)
+			return nil
+		case "build":
+			if len(args) > 2 {
+				return fmt.Errorf("usage: pgo doccache [path|build]")
+			}
+			if *baseURL == "" {
+				return fmt.Errorf("paperless URL is required (use -url flag or PAPERLESS_URL env var)")
+			}
+			if *token == "" {
+				return fmt.Errorf("API token is required (use -token flag or PAPERLESS_TOKEN env var)")
+			}
+
+			client := paperless.NewClient(*baseURL, *token)
+			ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			defer cancel()
+
+			docNames, err := getDocNamesWithCache(ctx, client, true, DefaultCacheTTL)
+			if err != nil {
+				return fmt.Errorf("failed to build doc cache: %w", err)
+			}
+
+			cachePath, err := getDocCacheFilePath()
+			if err != nil {
+				return fmt.Errorf("failed to get doc cache file path: %w", err)
+			}
+
+			fetchedAt := time.Now()
+			if cache, err := loadDocCache(); err == nil && cache != nil {
+				fetchedAt = cache.FetchedAt
+			}
+
+			output := CacheBuildOutput{
+				Path:      cachePath,
+				Entries:   len(docNames),
+				FetchedAt: fetchedAt.Format(time.RFC3339),
+				InMemory:  useInMemoryDocCache,
+			}
+			if err := outputJSON(output); err != nil {
+				return fmt.Errorf("failed to output JSON: %w", err)
+			}
+			return nil
+		default:
+			return fmt.Errorf("usage: pgo doccache [path|build]")
+		}
 	}
 
 	if command == "rag" {
@@ -133,7 +247,7 @@ func run() error {
 
 	if command == "apply" {
 		if len(args) < 3 {
-			return fmt.Errorf("usage: pgo apply docs <id> --tags=<id1>,<id2>...")
+			return fmt.Errorf("usage: pgo apply docs <id> --tags=<id1>,<id2>")
 		}
 
 		resource := args[1]

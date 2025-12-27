@@ -80,8 +80,8 @@ The `pgo` CLI tool provides command-line access to Paperless-ngx:
 - `pgo search tags <query>` - Search tags
 - `pgo apply docs <id> --tags=<id1>,<id2>...` - Update tags for a document
 - `pgo add tag "<name>"` - Create a new tag
-- `pgo tagcache` - Print the cache file path (no authentication required)
-- `pgo doccache` - Print the doc cache file path (no authentication required)
+- `pgo tagcache [path|build]` - Print or build the tag cache (`path` requires no authentication)
+- `pgo doccache [path|build]` - Print or build the doc cache (`path` requires no authentication)
 - `pgo rag <args>` - Invoke `pgo-rag` if installed in PATH
 
 All commands return JSON output by default. Document output includes both tag IDs and resolved tag names for convenience.
@@ -112,7 +112,8 @@ The CLI includes a tag cache to reduce API calls when fetching tags for document
 - **In-Memory Fallback**: If filesystem permissions prevent cache writes, the CLI automatically falls back to an in-memory cache that persists for the duration of the command
 - **Explicit In-Memory Mode**: Use `-memory` flag to skip disk caching entirely
 - **Force Refresh**: Use `-force-refresh` flag to bypass cache and fetch fresh data
-- **Cache Inspection**: Use `pgo tagcache` command to print the full path to the cache file
+- **Cache Inspection**: Use `pgo tagcache path` (or `pgo tagcache`) to print the full path to the cache file
+- **Cache Build**: Use `pgo tagcache build` to fetch fresh tags and write the cache
 
 The cache ensures that:
 1. Commands work even with filesystem permission issues (automatic in-memory fallback)
