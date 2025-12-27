@@ -27,3 +27,12 @@ go build ./cmd/pgo-rag
 
 - `pgo-rag build` — build or refresh the local SQLite index
 - `pgo-rag search` — run a similarity search against the local index
+
+## Embeddings configuration
+
+`pgo-rag` uses an OpenAI-compatible embeddings endpoint (for example, Ollama).
+Defaults target a local Ollama instance:
+
+- `PGO_RAG_EMBEDDER_URL` (default: `http://localhost:11434/v1`)
+- `PGO_RAG_EMBEDDER_MODEL` (default: `nomic-embed-text`)
+- `PGO_RAG_EMBEDDER_KEY` (optional API key)

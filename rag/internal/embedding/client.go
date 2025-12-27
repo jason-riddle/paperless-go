@@ -27,6 +27,16 @@ func NewClient(apiKey, model string) *Client {
 	}
 }
 
+// NewClientWithBaseURL creates a new embeddings client with a custom base URL.
+func NewClientWithBaseURL(apiKey, model, baseURL string) *Client {
+	return &Client{
+		apiKey:  apiKey,
+		model:   model,
+		baseURL: baseURL,
+		client:  &http.Client{Timeout: 60 * time.Second},
+	}
+}
+
 // NewOllamaClient creates a new embeddings client for Ollama
 func NewOllamaClient(baseURL, model string) *Client {
 	return &Client{

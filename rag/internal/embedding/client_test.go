@@ -31,6 +31,26 @@ func TestNewClient(t *testing.T) {
 	}
 }
 
+func TestNewClientWithBaseURL(t *testing.T) {
+	var client = NewClientWithBaseURL("test-key", "test-model", "http://localhost:1234")
+
+	if client == nil {
+		t.Fatal("Client is nil")
+	}
+
+	if client.apiKey != "test-key" {
+		t.Errorf("Expected apiKey 'test-key', got '%s'", client.apiKey)
+	}
+
+	if client.model != "test-model" {
+		t.Errorf("Expected model 'test-model', got '%s'", client.model)
+	}
+
+	if client.baseURL != "http://localhost:1234" {
+		t.Errorf("Expected baseURL 'http://localhost:1234', got '%s'", client.baseURL)
+	}
+}
+
 func TestNewOllamaClient(t *testing.T) {
 	var client = NewOllamaClient("http://localhost:11434/v1", "nomic-embed-text")
 
