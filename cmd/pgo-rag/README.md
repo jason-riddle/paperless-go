@@ -28,4 +28,4 @@ go build
 - `PGO_RAG_EMBEDDINGS_KEY` (required)
 - `PGO_RAG_EMBEDDINGS_MODEL` (required)
 - `PGO_RAG_MAX_DOCS` (optional; limit indexed documents for testing, default: 5)
-- `PGO_RAG_TAG` or `PAPERLESS_RAG_INDEX_TAG` (optional; tag name filter, exact match)
+- `PGO_RAG_TAG` (optional; tag name filter, exact match; unset = all documents)
