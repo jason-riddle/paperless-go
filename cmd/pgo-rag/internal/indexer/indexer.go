@@ -70,7 +70,7 @@ func BuildIndex(ctx context.Context, client PaperlessClient, db *storage.DB, emb
 		return summary, err
 	}
 
-	documents, err := listAllDocuments(ctx, client, pageSize)
+	documents, err := listAllDocuments(ctx, client, pageSize, opts.MaxDocs)
 	if err != nil {
 		return summary, err
 	}
@@ -227,23 +227,44 @@ func listAllTags(ctx context.Context, client PaperlessClient, pageSize int) (map
 	return tagsByID, nil
 }
 
-func listAllDocuments(ctx context.Context, client PaperlessClient, pageSize int) ([]paperless.Document, error) {
+func listAllDocuments(ctx context.Context, client PaperlessClient, pageSize int, maxDocs int) ([]paperless.Document, error) {
 	page := 1
 	var documents []paperless.Document
 
 	for {
+		if maxDocs > 0 && len(documents) >= maxDocs {
+			break
+		}
+
 		select {
 		case <-ctx.Done():
 			return nil, ctx.Err()
 		default:
 		}
 
-		list, err := client.ListDocuments(ctx, &paperless.ListOptions{Page: page, PageSize: pageSize})
+		effectivePageSize := pageSize
+		if effectivePageSize <= 0 {
+			effectivePageSize = 100
+		}
+		if maxDocs > 0 {
+			remaining := maxDocs - len(documents)
+			if remaining <= 0 {
+				break
+			}
+			if remaining < effectivePageSize {
+				effectivePageSize = remaining
+			}
+		}
+
+		list, err := client.ListDocuments(ctx, &paperless.ListOptions{Page: page, PageSize: effectivePageSize})
 		if err != nil {
 			return nil, err
 		}
 
 		documents = append(documents, list.Results...)
+		if maxDocs > 0 && len(documents) >= maxDocs {
+			break
+		}
 		if list.Next == nil || len(list.Results) == 0 {
 			break
 		}

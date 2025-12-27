@@ -8,18 +8,18 @@ OUT_DIR ?= bin
 
 PAPERLESS_URL ?= $(PAPERLESS_URL)
 PAPERLESS_TOKEN ?= $(PAPERLESS_TOKEN)
-PGO_RAG_EMBEDDINGS_URL ?= $(PGO_RAG_EMBEDDINGS_URL)
+PGO_RAG_EMBEDDINGS_URL ?= https://openrouter.ai/api
 PGO_RAG_EMBEDDINGS_KEY ?= $(PGO_RAG_EMBEDDINGS_KEY)
-PGO_RAG_EMBEDDINGS_MODEL ?= $(PGO_RAG_EMBEDDINGS_MODEL)
+PGO_RAG_EMBEDDINGS_MODEL ?= google/gemini-embedding-001
 PGO_RAG_MAX_DOCS ?= 5
-PGO_RAG_TAG ?= $(PGO_RAG_TAG)
-RAG_PAGE_SIZE ?=
+PGO_RAG_TAG ?= PAPERLESS_RAG_INDEX_TAG
+RAG_PAGE_SIZE ?= 100
 RAG_DB ?= rag.db
-RAG_QUERY ?=
-RAG_LIMIT ?=
-RAG_THRESHOLD ?=
+RAG_QUERY ?= doctor
+RAG_LIMIT ?= 5
+RAG_THRESHOLD ?= 0.7
 
-.PHONY: all build rag rag-build rag-search test test-race fmt vet tidy clean help
+.PHONY: all build rag rag-build rag-search rag-search-dry test test-race fmt vet tidy clean help
 
 all: build
 
@@ -34,6 +34,9 @@ rag-build:
 
 rag-search:
 	$(GO) run . search -db "$(RAG_DB)" -query "$(RAG_QUERY)" -limit "$(RAG_LIMIT)" -threshold "$(RAG_THRESHOLD)" -embeddings-url "$(PGO_RAG_EMBEDDINGS_URL)" -embeddings-key "$(PGO_RAG_EMBEDDINGS_KEY)" -embeddings-model "$(PGO_RAG_EMBEDDINGS_MODEL)" $(RAG_ARGS)
+
+rag-search-dry:
+	@printf '%s\n' 'go run . search -db "$(RAG_DB)" -query "$(RAG_QUERY)" -limit "$(RAG_LIMIT)" -threshold "$(RAG_THRESHOLD)" -embeddings-url "$(PGO_RAG_EMBEDDINGS_URL)" -embeddings-key "$(PGO_RAG_EMBEDDINGS_KEY)" -embeddings-model "$(PGO_RAG_EMBEDDINGS_MODEL)" $(RAG_ARGS)'
 
 test:
 	$(GO) test ./...
@@ -60,6 +63,7 @@ help:
 	  '  rag        Run build via go run .' \
 	  '  rag-build  Run build subcommand via go run .' \
 	  '  rag-search Run search subcommand via go run .' \
+	  '  rag-search-dry Print the search command without running it' \
 	  '  test       Run unit tests' \
 	  '  test-race  Run tests with -race' \
 	  '  fmt        Run go fmt ./...' \

@@ -243,6 +243,9 @@ func TestBuildIndexMaxDocs(t *testing.T) {
 	if summary.DocumentsIndexed != 2 {
 		t.Fatalf("expected 2 documents indexed, got %d", summary.DocumentsIndexed)
 	}
+	if summary.DocumentsFetched != 2 {
+		t.Fatalf("expected 2 documents fetched, got %d", summary.DocumentsFetched)
+	}
 }
 
 func TestBuildIndexTagFilter(t *testing.T) {
@@ -326,12 +329,20 @@ func TestPaginationHelpers(t *testing.T) {
 		tags:      []paperless.Tag{{ID: 1, Name: "one"}, {ID: 2, Name: "two"}},
 	}
 
-	docs, err := listAllDocuments(context.Background(), client, 2)
+	docs, err := listAllDocuments(context.Background(), client, 2, 0)
 	if err != nil {
 		t.Fatalf("listAllDocuments failed: %v", err)
 	}
 	if len(docs) != 3 {
 		t.Fatalf("expected 3 documents, got %d", len(docs))
+	}
+
+	limited, err := listAllDocuments(context.Background(), client, 2, 2)
+	if err != nil {
+		t.Fatalf("listAllDocuments failed: %v", err)
+	}
+	if len(limited) != 2 {
+		t.Fatalf("expected 2 documents, got %d", len(limited))
 	}
 
 	tags, err := listAllTags(context.Background(), client, 1)
