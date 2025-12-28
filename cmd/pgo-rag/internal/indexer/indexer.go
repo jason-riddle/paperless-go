@@ -37,6 +37,7 @@ type BuildSummary struct {
 	DocumentsFetched    int `json:"documents_fetched"`
 	DocumentsIndexed    int `json:"documents_indexed"`
 	DocumentsSkipped    int `json:"documents_skipped"`
+	DocumentsFailed     int `json:"documents_failed"`
 	EmbeddingsGenerated int `json:"embeddings_generated"`
 }
 
@@ -71,112 +72,165 @@ func BuildIndex(ctx context.Context, client PaperlessClient, db *storage.DB, emb
 		return summary, err
 	}
 
-	documents, err := listAllDocuments(ctx, client, pageSize, opts.MaxDocs)
+	state, err := db.GetIndexState()
 	if err != nil {
 		return summary, err
 	}
+	if state.LastPaperlessID > 0 {
+		slog.Info("Resuming index build",
+			"last_paperless_id", state.LastPaperlessID,
+			"last_updated_at", state.UpdatedAt,
+		)
+	}
 
-	summary.DocumentsFetched = len(documents)
-
-	for _, doc := range documents {
-		if opts.MaxDocs > 0 && summary.DocumentsIndexed >= opts.MaxDocs {
+	page := 1
+	for {
+		if opts.MaxDocs > 0 && summary.DocumentsFetched >= opts.MaxDocs {
 			break
 		}
+
 		select {
 		case <-ctx.Done():
 			return summary, ctx.Err()
 		default:
 		}
 
-		if opts.TagName != "" && !documentHasTag(doc, tagsByID, opts.TagName) {
-			slog.Info("Skipping document without tag",
-				"paperless_id", doc.ID,
-				"title", strings.TrimSpace(doc.Title),
-				"required_tag", opts.TagName,
-			)
-			summary.DocumentsSkipped++
-			continue
+		effectivePageSize := pageSize
+		if opts.MaxDocs > 0 {
+			remaining := opts.MaxDocs - summary.DocumentsFetched
+			if remaining <= 0 {
+				break
+			}
+			if remaining < effectivePageSize {
+				effectivePageSize = remaining
+			}
 		}
 
-		tags := formatTags(doc.Tags, tagsByID)
-		text := buildEmbeddingText(doc.Title, tags, doc.Content)
-		if text == "" {
-			slog.Info("Skipping document with empty embedding text",
-				"paperless_id", doc.ID,
-				"title", strings.TrimSpace(doc.Title),
-				"tags", tags,
-				"content_len", len(strings.TrimSpace(doc.Content)),
-			)
-			summary.DocumentsSkipped++
-			continue
-		}
-
-		modified := doc.Modified.Time()
-		existing, err := db.GetDocumentByPaperlessID(doc.ID)
+		list, err := client.ListDocuments(ctx, &paperless.ListOptions{
+			Page:     page,
+			PageSize: effectivePageSize,
+			Ordering: "id",
+		})
 		if err != nil {
 			return summary, err
 		}
-		if existing != nil && existing.LastModified.Equal(modified) {
-			slog.Info("Skipping unchanged document",
-				"paperless_id", doc.ID,
-				"title", strings.TrimSpace(doc.Title),
-				"last_modified", modified,
-			)
-			summary.DocumentsSkipped++
-			continue
+		if len(list.Results) == 0 {
+			break
 		}
 
-		var docID int
-		if existing == nil {
-			newID, err := db.InsertDocument(storage.Document{
-				PaperlessID:  doc.ID,
-				PaperlessURL: docURL(doc),
-				Title:        doc.Title,
-				Tags:         tags,
-				LastModified: modified,
-			})
-			if err != nil {
-				return summary, err
+		for _, doc := range list.Results {
+			if opts.MaxDocs > 0 && summary.DocumentsFetched >= opts.MaxDocs {
+				break
 			}
-			docID = int(newID)
-		} else {
-			docID = existing.ID
-			if err := db.UpdateDocument(storage.Document{
-				PaperlessID:  doc.ID,
-				PaperlessURL: docURL(doc),
-				Title:        doc.Title,
-				Tags:         tags,
-				LastModified: modified,
-			}); err != nil {
+
+			summary.DocumentsFetched++
+
+			if err := processDocument(ctx, db, embedder, tagsByID, opts, doc, &summary); err != nil {
 				return summary, err
 			}
 
-			if err := db.DeleteEmbeddingsByDocumentID(docID); err != nil {
+			if err := db.UpdateIndexState(doc.ID); err != nil {
 				return summary, err
 			}
 		}
 
-		vector, err := embedder.GenerateEmbedding(text)
-		if err != nil {
-			return summary, fmt.Errorf("generate embedding for document %d: %w", doc.ID, err)
+		if list.Next == nil {
+			break
 		}
-		slog.Info("Embedded document",
+		page++
+	}
+
+	return summary, nil
+}
+
+func processDocument(ctx context.Context, db *storage.DB, embedder Embedder, tagsByID map[int]string, opts BuildOptions, doc paperless.Document, summary *BuildSummary) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	default:
+	}
+
+	if opts.TagName != "" && !documentHasTag(doc, tagsByID, opts.TagName) {
+		slog.Info("Skipping document without tag",
+			"paperless_id", doc.ID,
+			"title", strings.TrimSpace(doc.Title),
+			"required_tag", opts.TagName,
+		)
+		summary.DocumentsSkipped++
+		return nil
+	}
+
+	tags := formatTags(doc.Tags, tagsByID)
+	text := buildEmbeddingText(doc.Title, tags, doc.Content)
+	if text == "" {
+		slog.Info("Skipping document with empty embedding text",
 			"paperless_id", doc.ID,
 			"title", strings.TrimSpace(doc.Title),
 			"tags", tags,
 			"content_len", len(strings.TrimSpace(doc.Content)),
-			"embedding_text_len", len(text),
-			"embedding_text_preview", previewText(text, 200),
 		)
-		if err := db.InsertEmbedding(docID, text, vector); err != nil {
-			return summary, err
-		}
-
-		summary.DocumentsIndexed++
-		summary.EmbeddingsGenerated++
+		summary.DocumentsSkipped++
+		return nil
 	}
 
-	return summary, nil
+	modified := doc.Modified.Time()
+	existing, err := db.GetDocumentByPaperlessID(doc.ID)
+	if err != nil {
+		return err
+	}
+	if existing != nil && existing.LastModified.Equal(modified) && !existing.EmbeddedAt.IsZero() {
+		slog.Info("Skipping unchanged document",
+			"paperless_id", doc.ID,
+			"title", strings.TrimSpace(doc.Title),
+			"last_modified", modified,
+		)
+		summary.DocumentsSkipped++
+		return nil
+	}
+
+	vector, err := embedder.GenerateEmbedding(text)
+	if err != nil {
+		return recordDocumentFailure(db, summary, doc.ID, fmt.Errorf("generate embedding for document %d: %w", doc.ID, err))
+	}
+
+	slog.Info("Embedded document",
+		"paperless_id", doc.ID,
+		"title", strings.TrimSpace(doc.Title),
+		"tags", tags,
+		"content_len", len(strings.TrimSpace(doc.Content)),
+		"embedding_text_len", len(text),
+		"embedding_text_preview", previewText(text, 200),
+	)
+
+	if err := db.UpsertDocumentWithEmbedding(storage.Document{
+		PaperlessID:  doc.ID,
+		PaperlessURL: docURL(doc),
+		Title:        doc.Title,
+		Tags:         tags,
+		LastModified: modified,
+	}, text, vector); err != nil {
+		return recordDocumentFailure(db, summary, doc.ID, fmt.Errorf("update index for document %d: %w", doc.ID, err))
+	}
+
+	if err := db.ClearIndexFailure(doc.ID); err != nil {
+		return err
+	}
+
+	summary.DocumentsIndexed++
+	summary.EmbeddingsGenerated++
+	return nil
+}
+
+func recordDocumentFailure(db *storage.DB, summary *BuildSummary, paperlessID int, err error) error {
+	slog.Error("Failed to index document",
+		"paperless_id", paperlessID,
+		"error", err,
+	)
+	if recordErr := db.RecordIndexFailure(paperlessID, err); recordErr != nil {
+		return recordErr
+	}
+	summary.DocumentsFailed++
+	return nil
 }
 
 // SearchIndex runs a similarity search against the local index.
@@ -250,53 +304,6 @@ func listAllTags(ctx context.Context, client PaperlessClient, pageSize int) (map
 	}
 
 	return tagsByID, nil
-}
-
-func listAllDocuments(ctx context.Context, client PaperlessClient, pageSize int, maxDocs int) ([]paperless.Document, error) {
-	page := 1
-	var documents []paperless.Document
-
-	for {
-		if maxDocs > 0 && len(documents) >= maxDocs {
-			break
-		}
-
-		select {
-		case <-ctx.Done():
-			return nil, ctx.Err()
-		default:
-		}
-
-		effectivePageSize := pageSize
-		if effectivePageSize <= 0 {
-			effectivePageSize = 100
-		}
-		if maxDocs > 0 {
-			remaining := maxDocs - len(documents)
-			if remaining <= 0 {
-				break
-			}
-			if remaining < effectivePageSize {
-				effectivePageSize = remaining
-			}
-		}
-
-		list, err := client.ListDocuments(ctx, &paperless.ListOptions{Page: page, PageSize: effectivePageSize})
-		if err != nil {
-			return nil, err
-		}
-
-		documents = append(documents, list.Results...)
-		if maxDocs > 0 && len(documents) >= maxDocs {
-			break
-		}
-		if list.Next == nil || len(list.Results) == 0 {
-			break
-		}
-		page++
-	}
-
-	return documents, nil
 }
 
 func formatTags(tagIDs []int, tagsByID map[int]string) string {

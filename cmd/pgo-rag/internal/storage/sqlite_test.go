@@ -1,6 +1,7 @@
 package storage
 
 import (
+	"fmt"
 	"math"
 	"os"
 	"path/filepath"
@@ -23,12 +24,12 @@ func TestNewDB(t *testing.T) {
 
 	// Verify schema was created
 	var count int
-	err = db.conn.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('documents', 'embeddings')").Scan(&count)
+	err = db.conn.QueryRow("SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name IN ('documents', 'embeddings', 'index_state', 'index_failures')").Scan(&count)
 	if err != nil {
 		t.Fatalf("Failed to query schema: %v", err)
 	}
-	if count != 2 {
-		t.Errorf("Expected 2 tables, got %d", count)
+	if count != 4 {
+		t.Errorf("Expected 4 tables, got %d", count)
 	}
 }
 
@@ -168,5 +169,86 @@ func TestNewDBWithNestedDirectory(t *testing.T) {
 	// Verify directory was created
 	if _, err := os.Stat(filepath.Dir(dbPath)); os.IsNotExist(err) {
 		t.Error("Nested directory was not created")
+	}
+}
+
+func TestIndexStateLifecycle(t *testing.T) {
+	var tmpDir = t.TempDir()
+	var dbPath = filepath.Join(tmpDir, "test.db")
+
+	db, err := NewDB(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create database: %v", err)
+	}
+	defer db.Close()
+
+	state, err := db.GetIndexState()
+	if err != nil {
+		t.Fatalf("Failed to get index state: %v", err)
+	}
+	if state.LastPaperlessID != 0 {
+		t.Fatalf("Expected initial last_paperless_id to be 0, got %d", state.LastPaperlessID)
+	}
+
+	if err := db.UpdateIndexState(42); err != nil {
+		t.Fatalf("Failed to update index state: %v", err)
+	}
+
+	state, err = db.GetIndexState()
+	if err != nil {
+		t.Fatalf("Failed to get index state after update: %v", err)
+	}
+	if state.LastPaperlessID != 42 {
+		t.Fatalf("Expected last_paperless_id to be 42, got %d", state.LastPaperlessID)
+	}
+
+	if err := db.ResetIndexState(); err != nil {
+		t.Fatalf("Failed to reset index state: %v", err)
+	}
+
+	state, err = db.GetIndexState()
+	if err != nil {
+		t.Fatalf("Failed to get index state after reset: %v", err)
+	}
+	if state.LastPaperlessID != 0 {
+		t.Fatalf("Expected last_paperless_id to be 0 after reset, got %d", state.LastPaperlessID)
+	}
+}
+
+func TestIndexFailuresLifecycle(t *testing.T) {
+	var tmpDir = t.TempDir()
+	var dbPath = filepath.Join(tmpDir, "test.db")
+
+	db, err := NewDB(dbPath)
+	if err != nil {
+		t.Fatalf("Failed to create database: %v", err)
+	}
+	defer db.Close()
+
+	if err := db.RecordIndexFailure(99, fmt.Errorf("boom")); err != nil {
+		t.Fatalf("Failed to record index failure: %v", err)
+	}
+
+	failure, err := db.GetIndexFailure(99)
+	if err != nil {
+		t.Fatalf("Failed to get index failure: %v", err)
+	}
+	if failure == nil {
+		t.Fatal("Expected failure record to exist")
+	}
+	if failure.Error == "" {
+		t.Fatal("Expected failure error to be set")
+	}
+
+	if err := db.ClearIndexFailure(99); err != nil {
+		t.Fatalf("Failed to clear index failure: %v", err)
+	}
+
+	failure, err = db.GetIndexFailure(99)
+	if err != nil {
+		t.Fatalf("Failed to get index failure after clear: %v", err)
+	}
+	if failure != nil {
+		t.Fatal("Expected failure record to be cleared")
 	}
 }
