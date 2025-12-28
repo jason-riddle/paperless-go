@@ -33,6 +33,7 @@ Global flags:
   -embeddings-key  Embeddings API key (or PGO_RAG_EMBEDDINGS_KEY)
   -embeddings-model Embeddings model name (or PGO_RAG_EMBEDDINGS_MODEL)
   -max-docs        Maximum documents to index (or PGO_RAG_MAX_DOCS)
+  -fresh           Clear existing index before building
   -tag             Tag name filter (or PGO_RAG_TAG)
 `
 
@@ -86,6 +87,7 @@ func runBuild(ctx context.Context, args []string) error {
 	pageSize := flags.Int("page-size", 100, "Paperless page size")
 	maxDocs := flags.Int("max-docs", getenvIntDefault("PGO_RAG_MAX_DOCS", 5), "Maximum documents to index (0 = no limit)")
 	tagName := flags.String("tag", strings.TrimSpace(os.Getenv("PGO_RAG_TAG")), "Tag name filter (exact match)")
+	fresh := flags.Bool("fresh", false, "Clear existing index before building")
 	embeddingsURL := flags.String("embeddings-url", os.Getenv("PGO_RAG_EMBEDDINGS_URL"), "Embeddings API base URL")
 	embeddingsKey := flags.String("embeddings-key", os.Getenv("PGO_RAG_EMBEDDINGS_KEY"), "Embeddings API key")
 	embeddingsModel := flags.String("embeddings-model", os.Getenv("PGO_RAG_EMBEDDINGS_MODEL"), "Embeddings model")
@@ -122,6 +124,11 @@ func runBuild(ctx context.Context, args []string) error {
 		return err
 	}
 	defer db.Close()
+	if *fresh {
+		if err := db.ClearIndexData(); err != nil {
+			return err
+		}
+	}
 
 	client := paperless.NewClient(*url, *token)
 	embedder := embedding.NewClient(*embeddingsURL, *embeddingsKey, *embeddingsModel)

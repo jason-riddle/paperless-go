@@ -23,6 +23,62 @@ func (db *DB) InsertDocument(doc Document) (int64, error) {
 	return id, nil
 }
 
+// UpsertDocumentWithEmbedding inserts or updates a document and replaces its embeddings.
+func (db *DB) UpsertDocumentWithEmbedding(doc Document, content string, vector []float32) error {
+	tx, err := db.conn.Begin()
+	if err != nil {
+		return fmt.Errorf("failed to begin transaction: %w", err)
+	}
+
+	if _, err := tx.Exec(`
+		INSERT INTO documents (paperless_id, paperless_url, title, tags, last_modified, embedded_at)
+		VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)
+		ON CONFLICT(paperless_id) DO UPDATE SET
+			paperless_url = excluded.paperless_url,
+			title = excluded.title,
+			tags = excluded.tags,
+			last_modified = excluded.last_modified,
+			embedded_at = CURRENT_TIMESTAMP
+	`, doc.PaperlessID, doc.PaperlessURL, doc.Title, doc.Tags, doc.LastModified); err != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return fmt.Errorf("failed to upsert document: %v (rollback error: %w)", err, rollbackErr)
+		}
+		return fmt.Errorf("failed to upsert document: %w", err)
+	}
+
+	var docID int
+	if err := tx.QueryRow(`SELECT id FROM documents WHERE paperless_id = ?`, doc.PaperlessID).Scan(&docID); err != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return fmt.Errorf("failed to fetch document id: %v (rollback error: %w)", err, rollbackErr)
+		}
+		return fmt.Errorf("failed to fetch document id: %w", err)
+	}
+
+	if _, err := tx.Exec(`DELETE FROM embeddings WHERE document_id = ?`, docID); err != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return fmt.Errorf("failed to delete embeddings: %v (rollback error: %w)", err, rollbackErr)
+		}
+		return fmt.Errorf("failed to delete embeddings: %w", err)
+	}
+
+	vectorBytes := serializeVector(vector)
+	if _, err := tx.Exec(`
+		INSERT INTO embeddings (document_id, content, vector)
+		VALUES (?, ?, ?)
+	`, docID, content, vectorBytes); err != nil {
+		if rollbackErr := tx.Rollback(); rollbackErr != nil {
+			return fmt.Errorf("failed to insert embedding: %v (rollback error: %w)", err, rollbackErr)
+		}
+		return fmt.Errorf("failed to insert embedding: %w", err)
+	}
+
+	if err := tx.Commit(); err != nil {
+		return fmt.Errorf("failed to commit embedding update: %w", err)
+	}
+
+	return nil
+}
+
 // UpdateDocument updates an existing document
 func (db *DB) UpdateDocument(doc Document) error {
 	_, err := db.conn.Exec(`

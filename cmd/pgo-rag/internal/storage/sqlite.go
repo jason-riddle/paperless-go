@@ -34,6 +34,22 @@ CREATE TABLE IF NOT EXISTS embeddings (
     FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
 );
 
+-- Index state tracks the last processed Paperless document ID
+CREATE TABLE IF NOT EXISTS index_state (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    last_paperless_id INTEGER NOT NULL DEFAULT 0,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+INSERT OR IGNORE INTO index_state (id, last_paperless_id) VALUES (1, 0);
+
+-- Failures are tracked per Paperless document ID
+CREATE TABLE IF NOT EXISTS index_failures (
+    paperless_id INTEGER PRIMARY KEY,
+    error TEXT NOT NULL,
+    failed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
 -- Index for faster lookups
 CREATE INDEX IF NOT EXISTS idx_paperless_id ON documents(paperless_id);
 CREATE INDEX IF NOT EXISTS idx_document_id ON embeddings(document_id);

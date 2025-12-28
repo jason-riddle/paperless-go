@@ -2,6 +2,7 @@ package indexer
 
 import (
 	"context"
+	"errors"
 	"path/filepath"
 	"testing"
 	"time"
@@ -20,6 +21,17 @@ func (f fakeEmbedder) GenerateEmbedding(text string) ([]float32, error) {
 		return []float32{0, 0, 1}, nil
 	}
 	return vector, nil
+}
+
+type failingEmbedder struct {
+	failOn string
+}
+
+func (f failingEmbedder) GenerateEmbedding(text string) ([]float32, error) {
+	if text == f.failOn {
+		return nil, errors.New("embed failed")
+	}
+	return []float32{1, 0, 0}, nil
 }
 
 type fakePaperless struct {
@@ -282,6 +294,44 @@ func TestBuildIndexTagFilter(t *testing.T) {
 	}
 }
 
+func TestBuildIndexFailureIsRecorded(t *testing.T) {
+	ctx := context.Background()
+
+	tmpDir := t.TempDir()
+	dbPath := filepath.Join(tmpDir, "index.db")
+	db, err := storage.NewDB(dbPath)
+	if err != nil {
+		t.Fatalf("failed to create db: %v", err)
+	}
+	defer db.Close()
+
+	modified := time.Now().UTC().Truncate(time.Second)
+	client := fakePaperless{
+		documents: []paperless.Document{
+			{ID: 1, Title: "Doc1", Content: "content1", Modified: paperless.Date(modified)},
+		},
+	}
+
+	failText := buildEmbeddingText("Doc1", "", "content1")
+	embedder := failingEmbedder{failOn: failText}
+
+	summary, err := BuildIndex(ctx, client, db, embedder, BuildOptions{})
+	if err != nil {
+		t.Fatalf("BuildIndex failed: %v", err)
+	}
+	if summary.DocumentsFailed != 1 {
+		t.Fatalf("expected 1 document failed, got %d", summary.DocumentsFailed)
+	}
+
+	failure, err := db.GetIndexFailure(1)
+	if err != nil {
+		t.Fatalf("GetIndexFailure failed: %v", err)
+	}
+	if failure == nil {
+		t.Fatal("expected failure record")
+	}
+}
+
 func TestHelpers(t *testing.T) {
 	if result := formatTags([]int{2, 1}, map[int]string{1: "alpha", 2: "beta"}); result != "alpha, beta" {
 		t.Fatalf("unexpected tags: %s", result)
@@ -323,26 +373,9 @@ func TestValidation(t *testing.T) {
 	}
 }
 
-func TestPaginationHelpers(t *testing.T) {
+func TestListAllTags(t *testing.T) {
 	client := fakePaperless{
-		documents: []paperless.Document{{ID: 1}, {ID: 2}, {ID: 3}},
-		tags:      []paperless.Tag{{ID: 1, Name: "one"}, {ID: 2, Name: "two"}},
-	}
-
-	docs, err := listAllDocuments(context.Background(), client, 2, 0)
-	if err != nil {
-		t.Fatalf("listAllDocuments failed: %v", err)
-	}
-	if len(docs) != 3 {
-		t.Fatalf("expected 3 documents, got %d", len(docs))
-	}
-
-	limited, err := listAllDocuments(context.Background(), client, 2, 2)
-	if err != nil {
-		t.Fatalf("listAllDocuments failed: %v", err)
-	}
-	if len(limited) != 2 {
-		t.Fatalf("expected 2 documents, got %d", len(limited))
+		tags: []paperless.Tag{{ID: 1, Name: "one"}, {ID: 2, Name: "two"}},
 	}
 
 	tags, err := listAllTags(context.Background(), client, 1)

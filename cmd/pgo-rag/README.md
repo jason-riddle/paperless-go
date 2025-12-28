@@ -20,6 +20,12 @@ go build
 - `pgo-rag build` — build or refresh the local SQLite index
 - `pgo-rag search` — run a similarity search against the local index
 
+## Resumable indexing
+
+`pgo-rag build` updates the SQLite index incrementally. If a long run is interrupted,
+rerun the build command and unchanged documents are skipped automatically. You can
+force a clean rebuild with `-fresh`.
+
 ## Embeddings configuration
 
 `pgo-rag` uses an OpenAI-compatible embeddings endpoint.
