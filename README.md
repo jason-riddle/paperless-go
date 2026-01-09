@@ -132,6 +132,36 @@ fmt.Printf("Created: %s\n", doc.Created)
 fmt.Printf("Tags: %v\n", doc.Tags)
 ```
 
+#### Rename a Document
+
+```go
+// Rename document with ID 123
+doc, err := client.RenameDocument(context.Background(), 123, "New Document Title")
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Renamed to: %s\n", doc.Title)
+```
+
+#### Update Document Tags
+
+```go
+// Update document tags (adds or replaces existing tags)
+doc, err := client.UpdateDocumentTags(context.Background(), 123, []int{1, 2, 3})
+if err != nil {
+    log.Fatal(err)
+}
+
+fmt.Printf("Tags: %v\n", doc.Tags)
+
+// Remove all tags from a document
+doc, err = client.UpdateDocumentTags(context.Background(), 123, []int{})
+if err != nil {
+    log.Fatal(err)
+}
+```
+
 ### Tags
 
 #### List Tags
@@ -210,14 +240,15 @@ doc, err := client.GetDocument(ctx, 123)
 
 ## API Coverage
 
-This library currently implements core read operations:
+This library currently implements core operations:
 
-- ✅ Documents (list, get)
-- ✅ Tags (list, get)
+- ✅ Documents (list, get, update, rename, update tags)
+- ✅ Tags (list, get, create)
 
 Future versions may include:
 
-- ⏳ Document creation, update, deletion
+- ⏳ Document creation, deletion
+- ⏳ Tag update, deletion
 - ⏳ Correspondents (list, get, create, update, delete)
 - ⏳ Document Types (list, get, create, update, delete)
 - ⏳ Storage Paths (list, get, create, update, delete)
