@@ -295,7 +295,7 @@ func run() error {
 
 		// Call update
 		update := &paperless.DocumentUpdate{
-			Tags: tagIDs,
+			Tags: &tagIDs,
 		}
 
 		doc, err := client.UpdateDocument(ctx, id, update)

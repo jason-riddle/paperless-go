@@ -123,7 +123,7 @@ The cache ensures that:
 ## API Coverage
 
 Current implementation:
-- ✅ Documents (list, get, update)
+- ✅ Documents (list, get, update, rename, update tags)
 - ✅ Tags (list, get, create)
 
 Future considerations:

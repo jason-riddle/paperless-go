@@ -104,7 +104,8 @@ type ListOptions struct {
 
 // DocumentUpdate represents fields to update on a document.
 type DocumentUpdate struct {
-	Tags []int `json:"tags,omitempty"`
+	Title *string `json:"title,omitempty"`
+	Tags  *[]int  `json:"tags,omitempty"`
 }
 
 // TagCreate represents fields to create a new tag.

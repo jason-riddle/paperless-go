@@ -204,8 +204,9 @@ func TestClient_GetDocument(t *testing.T) {
 
 func TestClient_UpdateDocument(t *testing.T) {
 	t.Run("success", func(t *testing.T) {
+		tags := []int{1, 2}
 		update := &DocumentUpdate{
-			Tags: []int{1, 2},
+			Tags: &tags,
 		}
 
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -221,8 +222,11 @@ func TestClient_UpdateDocument(t *testing.T) {
 			if err := json.NewDecoder(r.Body).Decode(&decoded); err != nil {
 				t.Fatalf("failed to decode request body: %v", err)
 			}
-			if len(decoded.Tags) != 2 || decoded.Tags[0] != 1 || decoded.Tags[1] != 2 {
-				t.Errorf("tags = %v, want [1, 2]", decoded.Tags)
+			if decoded.Tags == nil {
+				t.Fatal("tags is nil")
+			}
+			if len(*decoded.Tags) != 2 || (*decoded.Tags)[0] != 1 || (*decoded.Tags)[1] != 2 {
+				t.Errorf("tags = %v, want [1, 2]", *decoded.Tags)
 			}
 
 			w.Header().Set("Content-Type", "application/json")
@@ -244,6 +248,302 @@ func TestClient_UpdateDocument(t *testing.T) {
 		}
 		if len(doc.Tags) != 2 {
 			t.Errorf("len(Tags) = %d, want 2", len(doc.Tags))
+		}
+	})
+}
+
+func TestClient_RenameDocument(t *testing.T) {
+	t.Run("success", func(t *testing.T) {
+		newTitle := "New Document Title"
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/documents/1/" {
+				t.Errorf("path = %v, want /api/documents/1/", r.URL.Path)
+			}
+			if r.Method != "PATCH" {
+				t.Errorf("method = %v, want PATCH", r.Method)
+			}
+
+			// Verify body contains title
+			var decoded DocumentUpdate
+			if err := json.NewDecoder(r.Body).Decode(&decoded); err != nil {
+				t.Fatalf("failed to decode request body: %v", err)
+			}
+			if decoded.Title == nil {
+				t.Fatal("title is nil, expected non-nil")
+			}
+			if *decoded.Title != newTitle {
+				t.Errorf("title = %v, want %v", *decoded.Title, newTitle)
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(Document{
+				ID:    1,
+				Title: newTitle,
+			})
+		}))
+		defer server.Close()
+
+		c := NewClient(server.URL, "test-token")
+		doc, err := c.RenameDocument(context.Background(), 1, newTitle)
+		if err != nil {
+			t.Fatalf("RenameDocument failed: %v", err)
+		}
+		if doc.ID != 1 {
+			t.Errorf("ID = %d, want 1", doc.ID)
+		}
+		if doc.Title != newTitle {
+			t.Errorf("Title = %v, want %v", doc.Title, newTitle)
+		}
+	})
+
+	t.Run("empty title error", func(t *testing.T) {
+		c := NewClient("http://example.com", "test-token")
+		_, err := c.RenameDocument(context.Background(), 1, "")
+		if err == nil {
+			t.Fatal("expected error for empty title, got nil")
+		}
+		expectedMsg := "RenameDocument: title cannot be empty"
+		if err.Error() != expectedMsg {
+			t.Errorf("error message = %v, want %v", err.Error(), expectedMsg)
+		}
+	})
+
+	t.Run("invalid document ID error", func(t *testing.T) {
+		c := NewClient("http://example.com", "test-token")
+		_, err := c.RenameDocument(context.Background(), 0, "New Title")
+		if err == nil {
+			t.Fatal("expected error for invalid document ID, got nil")
+		}
+		expectedMsg := "RenameDocument: invalid document ID: 0"
+		if err.Error() != expectedMsg {
+			t.Errorf("error message = %v, want %v", err.Error(), expectedMsg)
+		}
+	})
+
+	t.Run("negative document ID error", func(t *testing.T) {
+		c := NewClient("http://example.com", "test-token")
+		_, err := c.RenameDocument(context.Background(), -1, "New Title")
+		if err == nil {
+			t.Fatal("expected error for negative document ID, got nil")
+		}
+		expectedMsg := "RenameDocument: invalid document ID: -1"
+		if err.Error() != expectedMsg {
+			t.Errorf("error message = %v, want %v", err.Error(), expectedMsg)
+		}
+	})
+
+	t.Run("not found error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("Not Found"))
+		}))
+		defer server.Close()
+
+		c := NewClient(server.URL, "test-token")
+		_, err := c.RenameDocument(context.Background(), 999, "New Title")
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !IsNotFound(err) {
+			t.Errorf("expected 404 error, got %v", err)
+		}
+		apiErr, ok := err.(*Error)
+		if !ok {
+			t.Fatalf("expected *Error, got %T", err)
+		}
+		if apiErr.Op != "RenameDocument" {
+			t.Errorf("op = %v, want RenameDocument", apiErr.Op)
+		}
+	})
+}
+
+func TestClient_UpdateDocumentTags(t *testing.T) {
+	t.Run("success with multiple tags", func(t *testing.T) {
+		tagIDs := []int{1, 2, 3}
+
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Path != "/api/documents/1/" {
+				t.Errorf("path = %v, want /api/documents/1/", r.URL.Path)
+			}
+			if r.Method != "PATCH" {
+				t.Errorf("method = %v, want PATCH", r.Method)
+			}
+
+			// Verify body contains tags
+			var decoded DocumentUpdate
+			if err := json.NewDecoder(r.Body).Decode(&decoded); err != nil {
+				t.Fatalf("failed to decode request body: %v", err)
+			}
+			if decoded.Tags == nil {
+				t.Fatal("tags is nil")
+			}
+			if len(*decoded.Tags) != 3 {
+				t.Errorf("len(tags) = %d, want 3", len(*decoded.Tags))
+			}
+			for i, tag := range *decoded.Tags {
+				if tag != tagIDs[i] {
+					t.Errorf("tags[%d] = %d, want %d", i, tag, tagIDs[i])
+				}
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(Document{
+				ID:   1,
+				Tags: tagIDs,
+			})
+		}))
+		defer server.Close()
+
+		c := NewClient(server.URL, "test-token")
+		doc, err := c.UpdateDocumentTags(context.Background(), 1, tagIDs)
+		if err != nil {
+			t.Fatalf("UpdateDocumentTags failed: %v", err)
+		}
+		if doc.ID != 1 {
+			t.Errorf("ID = %d, want 1", doc.ID)
+		}
+		if len(doc.Tags) != 3 {
+			t.Errorf("len(Tags) = %d, want 3", len(doc.Tags))
+		}
+	})
+
+	t.Run("success with empty tags (remove all)", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Verify body contains empty tags array
+			var decoded DocumentUpdate
+			if err := json.NewDecoder(r.Body).Decode(&decoded); err != nil {
+				t.Fatalf("failed to decode request body: %v", err)
+			}
+			if decoded.Tags == nil {
+				t.Fatal("tags is nil, expected non-nil pointer to empty slice")
+			}
+			if len(*decoded.Tags) != 0 {
+				t.Errorf("len(tags) = %d, want 0", len(*decoded.Tags))
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(Document{
+				ID:   1,
+				Tags: []int{},
+			})
+		}))
+		defer server.Close()
+
+		c := NewClient(server.URL, "test-token")
+		doc, err := c.UpdateDocumentTags(context.Background(), 1, []int{})
+		if err != nil {
+			t.Fatalf("UpdateDocumentTags failed: %v", err)
+		}
+		if doc.ID != 1 {
+			t.Errorf("ID = %d, want 1", doc.ID)
+		}
+		if len(doc.Tags) != 0 {
+			t.Errorf("len(Tags) = %d, want 0", len(doc.Tags))
+		}
+	})
+
+	t.Run("nil tags converted to empty slice", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Verify body contains empty tags array
+			var decoded DocumentUpdate
+			if err := json.NewDecoder(r.Body).Decode(&decoded); err != nil {
+				t.Fatalf("failed to decode request body: %v", err)
+			}
+			if decoded.Tags == nil {
+				t.Fatal("tags is nil, expected non-nil pointer to empty slice")
+			}
+			if len(*decoded.Tags) != 0 {
+				t.Errorf("len(tags) = %d, want 0", len(*decoded.Tags))
+			}
+
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(Document{
+				ID:   1,
+				Tags: []int{},
+			})
+		}))
+		defer server.Close()
+
+		c := NewClient(server.URL, "test-token")
+		doc, err := c.UpdateDocumentTags(context.Background(), 1, nil)
+		if err != nil {
+			t.Fatalf("UpdateDocumentTags failed: %v", err)
+		}
+		if doc.ID != 1 {
+			t.Errorf("ID = %d, want 1", doc.ID)
+		}
+	})
+
+	t.Run("invalid document ID error", func(t *testing.T) {
+		c := NewClient("http://example.com", "test-token")
+		_, err := c.UpdateDocumentTags(context.Background(), 0, []int{1, 2})
+		if err == nil {
+			t.Fatal("expected error for invalid document ID, got nil")
+		}
+		expectedMsg := "UpdateDocumentTags: invalid document ID: 0"
+		if err.Error() != expectedMsg {
+			t.Errorf("error message = %v, want %v", err.Error(), expectedMsg)
+		}
+	})
+
+	t.Run("negative document ID error", func(t *testing.T) {
+		c := NewClient("http://example.com", "test-token")
+		_, err := c.UpdateDocumentTags(context.Background(), -1, []int{1, 2})
+		if err == nil {
+			t.Fatal("expected error for negative document ID, got nil")
+		}
+		expectedMsg := "UpdateDocumentTags: invalid document ID: -1"
+		if err.Error() != expectedMsg {
+			t.Errorf("error message = %v, want %v", err.Error(), expectedMsg)
+		}
+	})
+
+	t.Run("invalid tag ID error", func(t *testing.T) {
+		c := NewClient("http://example.com", "test-token")
+		_, err := c.UpdateDocumentTags(context.Background(), 1, []int{1, 0, 3})
+		if err == nil {
+			t.Fatal("expected error for invalid tag ID, got nil")
+		}
+		expectedMsg := "UpdateDocumentTags: invalid tag ID at index 1: 0"
+		if err.Error() != expectedMsg {
+			t.Errorf("error message = %v, want %v", err.Error(), expectedMsg)
+		}
+	})
+
+	t.Run("negative tag ID error", func(t *testing.T) {
+		c := NewClient("http://example.com", "test-token")
+		_, err := c.UpdateDocumentTags(context.Background(), 1, []int{1, -5, 3})
+		if err == nil {
+			t.Fatal("expected error for negative tag ID, got nil")
+		}
+		expectedMsg := "UpdateDocumentTags: invalid tag ID at index 1: -5"
+		if err.Error() != expectedMsg {
+			t.Errorf("error message = %v, want %v", err.Error(), expectedMsg)
+		}
+	})
+
+	t.Run("not found error", func(t *testing.T) {
+		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusNotFound)
+			w.Write([]byte("Not Found"))
+		}))
+		defer server.Close()
+
+		c := NewClient(server.URL, "test-token")
+		_, err := c.UpdateDocumentTags(context.Background(), 999, []int{1, 2})
+		if err == nil {
+			t.Fatal("expected error, got nil")
+		}
+		if !IsNotFound(err) {
+			t.Errorf("expected 404 error, got %v", err)
+		}
+		apiErr, ok := err.(*Error)
+		if !ok {
+			t.Fatalf("expected *Error, got %T", err)
+		}
+		if apiErr.Op != "UpdateDocumentTags" {
+			t.Errorf("op = %v, want UpdateDocumentTags", apiErr.Op)
 		}
 	})
 }

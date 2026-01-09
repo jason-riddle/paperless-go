@@ -108,3 +108,39 @@ func ExampleIsNotFound() {
 
 	fmt.Printf("Document: %s\n", doc.Title)
 }
+
+func ExampleClient_RenameDocument() {
+	client := paperless.NewClient("http://localhost:8000", "your-api-token")
+
+	// Rename document with ID 1
+	doc, err := client.RenameDocument(context.Background(), 1, "New Document Title")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Renamed document to: %s\n", doc.Title)
+}
+
+func ExampleClient_UpdateDocumentTags() {
+	client := paperless.NewClient("http://localhost:8000", "your-api-token")
+
+	// Update document with ID 1 to have tags with IDs 5 and 10
+	doc, err := client.UpdateDocumentTags(context.Background(), 1, []int{5, 10})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Updated document tags: %v\n", doc.Tags)
+}
+
+func ExampleClient_UpdateDocumentTags_clearTags() {
+	client := paperless.NewClient("http://localhost:8000", "your-api-token")
+
+	// Remove all tags from document with ID 1
+	doc, err := client.UpdateDocumentTags(context.Background(), 1, []int{})
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	fmt.Printf("Cleared all tags from document %d\n", doc.ID)
+}
