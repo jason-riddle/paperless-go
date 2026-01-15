@@ -50,6 +50,8 @@ These credentials are:
 - `PAPERLESS_ADMIN_PASSWORD: admin` (Paperless admin user)
 - `PAPERLESS_SECRET_KEY: test-secret-key-for-integration-tests` (Django secret key)
 
+**Note on Token Output**: The `wait-for-paperless.sh` script outputs API tokens to stderr (not stdout) to reduce the risk of accidental capture in piped output or logs. This is intentional for integration testing purposes, but users should be aware that tokens will still be visible in terminal output.
+
 ## Logging Sensitive Information
 
 ### CLI Tools (pgo, pgo-rag)
