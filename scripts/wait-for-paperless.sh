@@ -27,8 +27,11 @@ print(token.key)
 " 2> /dev/null | tail -1)
 
       if [ -n "$TOKEN" ]; then
-        echo "API Token: $TOKEN"
-        echo "Export this token with: export PAPERLESS_TOKEN=$TOKEN"
+        echo "API Token retrieved successfully"
+        echo "Export this token with: export PAPERLESS_TOKEN=\$TOKEN"
+        echo ""
+        echo "To set the token in your environment, run:"
+        echo "  export PAPERLESS_TOKEN='$TOKEN'"
         exit 0
       fi
     fi
