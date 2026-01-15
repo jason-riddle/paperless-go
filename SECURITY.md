@@ -52,6 +52,12 @@ These credentials are:
 
 **Note on Token Output**: The `wait-for-paperless.sh` script outputs API tokens to stderr (not stdout) to reduce the risk of accidental capture in piped output or logs. This is intentional for integration testing purposes, but users should be aware that tokens will still be visible in terminal output.
 
+**Security Best Practices for Test Scripts**:
+- Clear your terminal history after running the script: `history -c` (bash/zsh)
+- Use a private/secure terminal session when running in shared environments
+- Consider using a secrets management tool even for local development
+- Rotate test tokens periodically
+
 ## Logging Sensitive Information
 
 ### CLI Tools (pgo, pgo-rag)
@@ -105,16 +111,24 @@ Best practices:
 
 ## Reporting Security Issues
 
-If you discover a security vulnerability:
+If you discover a security vulnerability in paperless-go:
 
 1. **DO NOT** create a public GitHub issue
-2. Email the maintainers directly with:
+2. Report the issue privately using one of these methods:
+   - Use GitHub's [Security Advisories](https://github.com/jason-riddle/paperless-go/security/advisories) feature
+   - Email the maintainer directly (see repository owner's GitHub profile for contact information)
+3. Include in your report:
    - Description of the vulnerability
    - Steps to reproduce
    - Potential impact
    - Suggested fix (if available)
 
-We will respond promptly and work with you to address the issue.
+We take security seriously and will respond promptly to all reports. We appreciate responsible disclosure and will work with you to address any issues.
+
+**Response Timeline**:
+- Initial response: Within 48 hours
+- Status update: Within 7 days
+- Fix timeline: Depends on severity, but critical issues will be prioritized
 
 ## Security Checklist for Contributors
 
