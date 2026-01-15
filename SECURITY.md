@@ -83,16 +83,20 @@ slog.Info("Processing document", "document_id", id, "content_length", len(conten
 
 Tag names (e.g., "finance", "confidential", "project-x") are logged in the RAG indexer for debugging purposes. While tags are generally non-sensitive metadata, they may occasionally contain sensitive information:
 
-- If your tags contain sensitive project names or classifications, consider using less verbose logging levels
-- Production deployments should use `info` level or higher to minimize tag exposure
+- **Tag names are logged at `info` level** - Tags will be visible in logs at the default `info` logging level
+- If your tags contain sensitive project names or classifications, use `warn` or `error` level to prevent tag exposure
+- Production deployments with sensitive tags should use `warn` or `error` level
 - Debug logs should only be enabled in secure, controlled environments
 
 To adjust logging verbosity in pgo-rag:
 ```bash
-# Use info level to reduce log output
+# Default info level - tags WILL be logged
 pgo-rag build -log-level info ...
 
-# Use error level for minimal logging
+# Use warn level to avoid logging tags
+pgo-rag build -log-level warn ...
+
+# Use error level for minimal logging (no tags)
 pgo-rag build -log-level error ...
 ```
 
