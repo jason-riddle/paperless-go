@@ -201,14 +201,14 @@ if err != nil {
         fmt.Println("Document not found")
         return
     }
-    
+
     // Access error details
     if apiErr, ok := err.(*paperless.Error); ok {
-        fmt.Printf("API Error: %d %s (operation: %s)\n", 
+        fmt.Printf("API Error: %d %s (operation: %s)\n",
             apiErr.StatusCode, apiErr.Message, apiErr.Op)
         return
     }
-    
+
     // Other errors (network, timeout, etc.)
     log.Fatal(err)
 }
