@@ -13,14 +13,14 @@ func TestGetCacheDir_Shared(t *testing.T) {
 		orig := os.Getenv("XDG_CACHE_HOME")
 		defer func() {
 			if orig != "" {
-				os.Setenv("XDG_CACHE_HOME", orig)
+				_ = os.Setenv("XDG_CACHE_HOME", orig)
 			} else {
-				os.Unsetenv("XDG_CACHE_HOME")
+				_ = os.Unsetenv("XDG_CACHE_HOME")
 			}
 		}()
 
 		testPath := "/tmp/test-cache-shared"
-		os.Setenv("XDG_CACHE_HOME", testPath)
+		_ = os.Setenv("XDG_CACHE_HOME", testPath)
 
 		cacheDir, err := getCacheDir()
 		if err != nil {
@@ -38,13 +38,13 @@ func TestGetCacheDir_Shared(t *testing.T) {
 		orig := os.Getenv("XDG_CACHE_HOME")
 		defer func() {
 			if orig != "" {
-				os.Setenv("XDG_CACHE_HOME", orig)
+				_ = os.Setenv("XDG_CACHE_HOME", orig)
 			} else {
-				os.Unsetenv("XDG_CACHE_HOME")
+				_ = os.Unsetenv("XDG_CACHE_HOME")
 			}
 		}()
 
-		os.Unsetenv("XDG_CACHE_HOME")
+		_ = os.Unsetenv("XDG_CACHE_HOME")
 
 		cacheDir, err := getCacheDir()
 		if err != nil {

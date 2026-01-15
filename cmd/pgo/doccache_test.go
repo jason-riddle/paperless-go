@@ -13,14 +13,14 @@ func TestGetDocCacheFilePath(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
 
 	testPath := "/tmp/test-cache"
-	os.Setenv("XDG_CACHE_HOME", testPath)
+	_ = os.Setenv("XDG_CACHE_HOME", testPath)
 
 	cachePath, err := getDocCacheFilePath()
 	if err != nil {
@@ -41,12 +41,12 @@ func TestSaveAndLoadDocCache(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
-	os.Setenv("XDG_CACHE_HOME", tmpDir)
+	_ = os.Setenv("XDG_CACHE_HOME", tmpDir)
 
 	// Save and restore global state
 	origUseInMemory := useInMemoryDocCache
@@ -105,12 +105,12 @@ func TestLoadDocCache_NonExistent(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
-	os.Setenv("XDG_CACHE_HOME", tmpDir)
+	_ = os.Setenv("XDG_CACHE_HOME", tmpDir)
 
 	// Save and restore global state
 	origUseInMemory := useInMemoryDocCache
@@ -143,12 +143,12 @@ func TestLoadDocCache_InvalidJSON(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
-	os.Setenv("XDG_CACHE_HOME", tmpDir)
+	_ = os.Setenv("XDG_CACHE_HOME", tmpDir)
 
 	// Save and restore global state
 	origUseInMemory := useInMemoryDocCache
@@ -232,9 +232,9 @@ func TestSaveDocCache_InvalidPath(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
 
@@ -251,7 +251,7 @@ func TestSaveDocCache_InvalidPath(t *testing.T) {
 	inMemoryDocCache = nil
 
 	// Use a path that we can't write to (assuming /root is not writable)
-	os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
+	_ = os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
 
 	// This should not panic or return error - just log warning
 	testDocs := map[int]string{1: "Test"}
@@ -323,12 +323,12 @@ func TestGetDocNamesWithCache_Integration(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
-	os.Setenv("XDG_CACHE_HOME", tmpDir)
+	_ = os.Setenv("XDG_CACHE_HOME", tmpDir)
 
 	t.Run("cache miss fetches from API and saves to cache", func(t *testing.T) {
 		// Note: This test would require importing the httptest package and paperless client
@@ -483,13 +483,13 @@ func TestInMemoryDocCache(t *testing.T) {
 		orig := os.Getenv("XDG_CACHE_HOME")
 		defer func() {
 			if orig != "" {
-				os.Setenv("XDG_CACHE_HOME", orig)
+				_ = os.Setenv("XDG_CACHE_HOME", orig)
 			} else {
-				os.Unsetenv("XDG_CACHE_HOME")
+				_ = os.Unsetenv("XDG_CACHE_HOME")
 			}
 		}()
 
-		os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
+		_ = os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
 
 		testDocs := map[int]string{
 			1: "Fallback Doc",
@@ -578,12 +578,12 @@ func TestInMemoryDocCacheFallbackIntegration(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
-	os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
+	_ = os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
 
 	// First save should fail and enable in-memory cache
 	// Note: /root/non-writable is used as a reliably unwritable path on Linux
