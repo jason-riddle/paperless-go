@@ -32,10 +32,10 @@ print(token.key)
         echo "API Token retrieved successfully!" >&2
         echo "==========================================" >&2
         echo "" >&2
-        echo "Token: $TOKEN" >&2
+        printf "Token: %s\n" "$TOKEN" >&2
         echo "" >&2
         echo "To use this token, run:" >&2
-        echo "  export PAPERLESS_TOKEN='$TOKEN'" >&2
+        printf "  export PAPERLESS_TOKEN='%s'\n" "$TOKEN" >&2
         exit 0
       fi
     fi
