@@ -153,7 +153,6 @@ func processDocument(ctx context.Context, db *storage.DB, embedder Embedder, tag
 	if opts.TagName != "" && !documentHasTag(doc, tagsByID, opts.TagName) {
 		slog.Info("Skipping document without tag",
 			"paperless_id", doc.ID,
-			"title", strings.TrimSpace(doc.Title),
 			"required_tag", opts.TagName,
 		)
 		summary.DocumentsSkipped++
@@ -165,9 +164,7 @@ func processDocument(ctx context.Context, db *storage.DB, embedder Embedder, tag
 	if text == "" {
 		slog.Info("Skipping document with empty embedding text",
 			"paperless_id", doc.ID,
-			"title", strings.TrimSpace(doc.Title),
 			"tags", tags,
-			"content_len", len(strings.TrimSpace(doc.Content)),
 		)
 		summary.DocumentsSkipped++
 		return nil
@@ -181,7 +178,6 @@ func processDocument(ctx context.Context, db *storage.DB, embedder Embedder, tag
 	if existing != nil && existing.LastModified.Equal(modified) && !existing.EmbeddedAt.IsZero() {
 		slog.Info("Skipping unchanged document",
 			"paperless_id", doc.ID,
-			"title", strings.TrimSpace(doc.Title),
 			"last_modified", modified,
 		)
 		summary.DocumentsSkipped++
@@ -195,11 +191,8 @@ func processDocument(ctx context.Context, db *storage.DB, embedder Embedder, tag
 
 	slog.Info("Embedded document",
 		"paperless_id", doc.ID,
-		"title", strings.TrimSpace(doc.Title),
 		"tags", tags,
-		"content_len", len(strings.TrimSpace(doc.Content)),
 		"embedding_text_len", len(text),
-		"embedding_text_preview", previewText(text, 200),
 	)
 
 	if err := db.UpsertDocumentWithEmbedding(storage.Document{
@@ -349,12 +342,4 @@ func documentHasTag(doc paperless.Document, tagsByID map[int]string, tagName str
 		}
 	}
 	return false
-}
-
-func previewText(text string, max int) string {
-	text = strings.TrimSpace(text)
-	if max <= 0 || len(text) <= max {
-		return text
-	}
-	return text[:max] + "..."
 }

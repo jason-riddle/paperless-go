@@ -1,3 +1,7 @@
+# WARNING: This docker-compose.yml file contains hardcoded credentials for testing purposes only.
+# DO NOT use these credentials in production environments.
+# In production, use Docker secrets, environment variables from a secure vault, or other secure credential management methods.
+
 services:
   broker:
     image: docker.io/library/redis:7
@@ -13,6 +17,7 @@ services:
     environment:
       POSTGRES_DB: paperless
       POSTGRES_USER: paperless
+      # WARNING: Hardcoded password for testing only - DO NOT use in production
       POSTGRES_PASSWORD: paperless
 
   paperless:
@@ -27,10 +32,13 @@ services:
       PAPERLESS_REDIS: redis://broker:6379
       PAPERLESS_DBHOST: db
       PAPERLESS_DBUSER: paperless
+      # WARNING: Hardcoded password for testing only - DO NOT use in production
       PAPERLESS_DBPASS: paperless
       PAPERLESS_ADMIN_USER: admin
+      # WARNING: Hardcoded password for testing only - DO NOT use in production
       PAPERLESS_ADMIN_PASSWORD: admin
       PAPERLESS_URL: http://localhost:8000
+      # WARNING: Hardcoded secret key for testing only - DO NOT use in production
       PAPERLESS_SECRET_KEY: test-secret-key-for-integration-tests
       PAPERLESS_OCR_LANGUAGE: eng
     volumes:
