@@ -104,7 +104,7 @@ func TestClient_ListDocuments(t *testing.T) {
 	t.Run("error response", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
-			w.Write([]byte("Internal Server Error"))
+			_, _ = w.Write([]byte("Internal Server Error"))
 		}))
 		defer server.Close()
 
@@ -164,7 +164,7 @@ func TestClient_GetDocument(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not Found"))
+			_, _ = w.Write([]byte("Not Found"))
 		}))
 		defer server.Close()
 
@@ -336,7 +336,7 @@ func TestClient_RenameDocument(t *testing.T) {
 	t.Run("not found error", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not Found"))
+			_, _ = w.Write([]byte("Not Found"))
 		}))
 		defer server.Close()
 
@@ -526,7 +526,7 @@ func TestClient_UpdateDocumentTags(t *testing.T) {
 	t.Run("not found error", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not Found"))
+			_, _ = w.Write([]byte("Not Found"))
 		}))
 		defer server.Close()
 

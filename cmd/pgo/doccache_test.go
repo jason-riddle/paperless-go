@@ -409,10 +409,10 @@ func TestGetDocNamesWithCache_Integration(t *testing.T) {
 		// Save manually
 		cachePath, _ := getDocCacheFilePath()
 		cacheDir := filepath.Dir(cachePath)
-		os.MkdirAll(cacheDir, 0755)
+		_ = os.MkdirAll(cacheDir, 0755)
 
 		data, _ := json.Marshal(staleCache)
-		os.WriteFile(cachePath, data, 0644)
+		_ = os.WriteFile(cachePath, data, 0644)
 
 		// Load and check staleness
 		cache, err := loadDocCache()

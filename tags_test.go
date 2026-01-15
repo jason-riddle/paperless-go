@@ -16,7 +16,7 @@ func TestClient_ListTags(t *testing.T) {
 				t.Errorf("path = %v, want /api/tags/", r.URL.Path)
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(TagList{
+			_ = json.NewEncoder(w).Encode(TagList{
 				Count: 2,
 				Results: []Tag{
 					{
@@ -82,7 +82,7 @@ func TestClient_ListTags(t *testing.T) {
 	t.Run("error response", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusUnauthorized)
-			w.Write([]byte("Unauthorized"))
+			_, _ = w.Write([]byte("Unauthorized"))
 		}))
 		defer server.Close()
 
@@ -119,7 +119,7 @@ func TestClient_GetTag(t *testing.T) {
 				t.Errorf("path = %v, want /api/tags/1/", r.URL.Path)
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(expectedTag)
+			_ = json.NewEncoder(w).Encode(expectedTag)
 		}))
 		defer server.Close()
 
@@ -148,7 +148,7 @@ func TestClient_GetTag(t *testing.T) {
 	t.Run("not found", func(t *testing.T) {
 		server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusNotFound)
-			w.Write([]byte("Not Found"))
+			_, _ = w.Write([]byte("Not Found"))
 		}))
 		defer server.Close()
 
