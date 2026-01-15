@@ -343,11 +343,3 @@ func documentHasTag(doc paperless.Document, tagsByID map[int]string, tagName str
 	}
 	return false
 }
-
-func previewText(text string, max int) string {
-	text = strings.TrimSpace(text)
-	if max <= 0 || len(text) <= max {
-		return text
-	}
-	return text[:max] + "..."
-}
