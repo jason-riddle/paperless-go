@@ -27,15 +27,15 @@ print(token.key)
 " 2> /dev/null | tail -1)
 
       if [ -n "$TOKEN" ]; then
-        echo "=========================================="
-        echo "API Token retrieved successfully!"
-        echo "=========================================="
-        echo ""
-        # Print token to stderr to avoid accidental capture in piped output
+        # Print all token-related output to stderr to avoid accidental capture
+        echo "==========================================" >&2
+        echo "API Token retrieved successfully!" >&2
+        echo "==========================================" >&2
+        echo "" >&2
         echo "Token: $TOKEN" >&2
-        echo ""
-        echo "To use this token, run:"
-        echo "  export PAPERLESS_TOKEN='$TOKEN'"
+        echo "" >&2
+        echo "To use this token, run:" >&2
+        echo "  export PAPERLESS_TOKEN='$TOKEN'" >&2
         exit 0
       fi
     fi
