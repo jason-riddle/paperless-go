@@ -64,7 +64,7 @@ func TestClient_ListTags(t *testing.T) {
 				t.Errorf("ordering = %v, want name", query.Get("ordering"))
 			}
 			w.Header().Set("Content-Type", "application/json")
-			json.NewEncoder(w).Encode(TagList{Count: 0, Results: []Tag{}})
+			_ = json.NewEncoder(w).Encode(TagList{Count: 0, Results: []Tag{}})
 		}))
 		defer server.Close()
 

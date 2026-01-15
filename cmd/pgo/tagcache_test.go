@@ -14,14 +14,14 @@ func TestGetCacheDir(t *testing.T) {
 		orig := os.Getenv("XDG_CACHE_HOME")
 		defer func() {
 			if orig != "" {
-				os.Setenv("XDG_CACHE_HOME", orig)
+				_ = os.Setenv("XDG_CACHE_HOME", orig)
 			} else {
-				os.Unsetenv("XDG_CACHE_HOME")
+				_ = os.Unsetenv("XDG_CACHE_HOME")
 			}
 		}()
 
 		testPath := "/tmp/test-cache"
-		os.Setenv("XDG_CACHE_HOME", testPath)
+		_ = os.Setenv("XDG_CACHE_HOME", testPath)
 
 		cacheDir, err := getCacheDir()
 		if err != nil {
@@ -39,13 +39,13 @@ func TestGetCacheDir(t *testing.T) {
 		orig := os.Getenv("XDG_CACHE_HOME")
 		defer func() {
 			if orig != "" {
-				os.Setenv("XDG_CACHE_HOME", orig)
+				_ = os.Setenv("XDG_CACHE_HOME", orig)
 			} else {
-				os.Unsetenv("XDG_CACHE_HOME")
+				_ = os.Unsetenv("XDG_CACHE_HOME")
 			}
 		}()
 
-		os.Unsetenv("XDG_CACHE_HOME")
+		_ = os.Unsetenv("XDG_CACHE_HOME")
 
 		cacheDir, err := getCacheDir()
 		if err != nil {
@@ -65,14 +65,14 @@ func TestGetCacheFilePath(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
 
 	testPath := "/tmp/test-cache"
-	os.Setenv("XDG_CACHE_HOME", testPath)
+	_ = os.Setenv("XDG_CACHE_HOME", testPath)
 
 	cachePath, err := getCacheFilePath()
 	if err != nil {
@@ -93,12 +93,12 @@ func TestSaveAndLoadTagCache(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
-	os.Setenv("XDG_CACHE_HOME", tmpDir)
+	_ = os.Setenv("XDG_CACHE_HOME", tmpDir)
 
 	// Test data
 	testTags := map[int]string{
@@ -145,12 +145,12 @@ func TestLoadTagCache_NonExistent(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
-	os.Setenv("XDG_CACHE_HOME", tmpDir)
+	_ = os.Setenv("XDG_CACHE_HOME", tmpDir)
 
 	// Try to load non-existent cache
 	cache, err := loadTagCache()
@@ -171,12 +171,12 @@ func TestLoadTagCache_InvalidJSON(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
-	os.Setenv("XDG_CACHE_HOME", tmpDir)
+	_ = os.Setenv("XDG_CACHE_HOME", tmpDir)
 
 	// Create cache directory
 	cacheDir := filepath.Join(tmpDir, "paperless-go")
@@ -248,14 +248,14 @@ func TestSaveTagCache_InvalidPath(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
 
 	// Use a path that we can't write to (assuming /root is not writable)
-	os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
+	_ = os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
 
 	// This should not panic or return error - just log warning
 	testTags := map[int]string{1: "Test"}
@@ -335,12 +335,12 @@ func TestGetTagNamesWithCache_Integration(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
-	os.Setenv("XDG_CACHE_HOME", tmpDir)
+	_ = os.Setenv("XDG_CACHE_HOME", tmpDir)
 
 	t.Run("cache miss fetches from API and saves to cache", func(t *testing.T) {
 		// Note: This test would require importing the httptest package and paperless client
@@ -495,13 +495,13 @@ func TestInMemoryCache(t *testing.T) {
 		orig := os.Getenv("XDG_CACHE_HOME")
 		defer func() {
 			if orig != "" {
-				os.Setenv("XDG_CACHE_HOME", orig)
+				_ = os.Setenv("XDG_CACHE_HOME", orig)
 			} else {
-				os.Unsetenv("XDG_CACHE_HOME")
+				_ = os.Unsetenv("XDG_CACHE_HOME")
 			}
 		}()
 
-		os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
+		_ = os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
 
 		testTags := map[int]string{
 			1: "Fallback Tag",
@@ -590,12 +590,12 @@ func TestInMemoryCacheFallbackIntegration(t *testing.T) {
 	orig := os.Getenv("XDG_CACHE_HOME")
 	defer func() {
 		if orig != "" {
-			os.Setenv("XDG_CACHE_HOME", orig)
+			_ = os.Setenv("XDG_CACHE_HOME", orig)
 		} else {
-			os.Unsetenv("XDG_CACHE_HOME")
+			_ = os.Unsetenv("XDG_CACHE_HOME")
 		}
 	}()
-	os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
+	_ = os.Setenv("XDG_CACHE_HOME", "/root/non-writable")
 
 	// First save should fail and enable in-memory cache
 	// Note: /root/non-writable is used as a reliably unwritable path on Linux

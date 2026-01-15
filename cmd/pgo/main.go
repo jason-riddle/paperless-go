@@ -405,7 +405,8 @@ func run() error {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	if resource == "docs" {
+	switch resource {
+	case "docs":
 		if hasID {
 			// Get specific document
 			doc, err := client.GetDocument(ctx, id)
@@ -463,7 +464,7 @@ func run() error {
 				return fmt.Errorf("failed to output JSON: %w", err)
 			}
 		}
-	} else if resource == "tags" {
+	case "tags":
 		if hasID {
 			// Get specific tag
 			tag, err := client.GetTag(ctx, id)
