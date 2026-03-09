@@ -278,3 +278,139 @@ func TestIntegration_CreateTag(t *testing.T) {
 		t.Logf("Warning: Created tag not found in list immediately (might be indexing delay)")
 	}
 }
+
+func TestIntegration_ListCorrespondents(t *testing.T) {
+	client := getTestClient(t)
+
+	ctx := context.Background()
+	correspondents, err := client.ListCorrespondents(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListCorrespondents failed: %v", err)
+	}
+
+	t.Logf("Found %d correspondents", correspondents.Count)
+
+	// Test with ordering
+	if correspondents.Count > 0 {
+		opts := &paperless.ListOptions{
+			Ordering: "name",
+		}
+		orderedCorrespondents, err := client.ListCorrespondents(ctx, opts)
+		if err != nil {
+			t.Fatalf("ListCorrespondents with ordering failed: %v", err)
+		}
+		if len(orderedCorrespondents.Results) > 0 {
+			t.Logf("First correspondent: %s", orderedCorrespondents.Results[0].Name)
+		}
+	}
+}
+
+func TestIntegration_GetCorrespondent(t *testing.T) {
+	client := getTestClient(t)
+
+	ctx := context.Background()
+
+	// First, get a list of correspondents to find a valid ID
+	correspondents, err := client.ListCorrespondents(ctx, &paperless.ListOptions{PageSize: 1})
+	if err != nil {
+		t.Fatalf("ListCorrespondents failed: %v", err)
+	}
+
+	if len(correspondents.Results) == 0 {
+		t.Skip("No correspondents available, skipping GetCorrespondent test")
+	}
+
+	correspondentID := correspondents.Results[0].ID
+	correspondent, err := client.GetCorrespondent(ctx, correspondentID)
+	if err != nil {
+		t.Fatalf("GetCorrespondent failed: %v", err)
+	}
+
+	if correspondent.ID != correspondentID {
+		t.Errorf("Expected correspondent ID %d, got %d", correspondentID, correspondent.ID)
+	}
+
+	t.Logf("Retrieved correspondent: %s (documents: %d)", correspondent.Name, correspondent.DocumentCount)
+}
+
+func TestIntegration_GetCorrespondent_NotFound(t *testing.T) {
+	client := getTestClient(t)
+
+	ctx := context.Background()
+	_, err := client.GetCorrespondent(ctx, 999999)
+	if err == nil {
+		t.Fatal("Expected error for non-existent correspondent, got nil")
+	}
+
+	if !paperless.IsNotFound(err) {
+		t.Errorf("Expected 404 error, got %v", err)
+	}
+}
+
+func TestIntegration_ListDocumentTypes(t *testing.T) {
+	client := getTestClient(t)
+
+	ctx := context.Background()
+	docTypes, err := client.ListDocumentTypes(ctx, nil)
+	if err != nil {
+		t.Fatalf("ListDocumentTypes failed: %v", err)
+	}
+
+	t.Logf("Found %d document types", docTypes.Count)
+
+	// Test with ordering
+	if docTypes.Count > 0 {
+		opts := &paperless.ListOptions{
+			Ordering: "name",
+		}
+		orderedDocTypes, err := client.ListDocumentTypes(ctx, opts)
+		if err != nil {
+			t.Fatalf("ListDocumentTypes with ordering failed: %v", err)
+		}
+		if len(orderedDocTypes.Results) > 0 {
+			t.Logf("First document type: %s", orderedDocTypes.Results[0].Name)
+		}
+	}
+}
+
+func TestIntegration_GetDocumentType(t *testing.T) {
+	client := getTestClient(t)
+
+	ctx := context.Background()
+
+	// First, get a list of document types to find a valid ID
+	docTypes, err := client.ListDocumentTypes(ctx, &paperless.ListOptions{PageSize: 1})
+	if err != nil {
+		t.Fatalf("ListDocumentTypes failed: %v", err)
+	}
+
+	if len(docTypes.Results) == 0 {
+		t.Skip("No document types available, skipping GetDocumentType test")
+	}
+
+	docTypeID := docTypes.Results[0].ID
+	docType, err := client.GetDocumentType(ctx, docTypeID)
+	if err != nil {
+		t.Fatalf("GetDocumentType failed: %v", err)
+	}
+
+	if docType.ID != docTypeID {
+		t.Errorf("Expected document type ID %d, got %d", docTypeID, docType.ID)
+	}
+
+	t.Logf("Retrieved document type: %s (documents: %d)", docType.Name, docType.DocumentCount)
+}
+
+func TestIntegration_GetDocumentType_NotFound(t *testing.T) {
+	client := getTestClient(t)
+
+	ctx := context.Background()
+	_, err := client.GetDocumentType(ctx, 999999)
+	if err == nil {
+		t.Fatal("Expected error for non-existent document type, got nil")
+	}
+
+	if !paperless.IsNotFound(err) {
+		t.Errorf("Expected 404 error, got %v", err)
+	}
+}
