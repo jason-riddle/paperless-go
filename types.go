@@ -66,6 +66,8 @@ type Document struct {
 	ArchiveSerialNumber *int   `json:"archive_serial_number"`
 	OriginalFileName    string `json:"original_file_name"`
 	Tags                []int  `json:"tags"`
+	Correspondent       *int   `json:"correspondent"`
+	DocumentType        *int   `json:"document_type"`
 }
 
 // Tag represents a Paperless-ngx tag.
@@ -75,6 +77,28 @@ type Tag struct {
 	Slug          string `json:"slug"`
 	Color         string `json:"color"`
 	DocumentCount int    `json:"document_count"`
+}
+
+// Correspondent represents a Paperless-ngx correspondent (entity like property manager, bank, insurance company, etc.)
+type Correspondent struct {
+	ID                int    `json:"id"`
+	Name              string `json:"name"`
+	Slug              string `json:"slug"`
+	Match             string `json:"match"`
+	MatchingAlgorithm int    `json:"matching_algorithm"`
+	IsInsensitive     bool   `json:"is_insensitive"`
+	DocumentCount     int    `json:"document_count"`
+}
+
+// DocumentType represents a Paperless-ngx document type classification (Invoice, Statement, Receipt, Contract, etc.)
+type DocumentType struct {
+	ID                int    `json:"id"`
+	Name              string `json:"name"`
+	Slug              string `json:"slug"`
+	Match             string `json:"match"`
+	MatchingAlgorithm int    `json:"matching_algorithm"`
+	IsInsensitive     bool   `json:"is_insensitive"`
+	DocumentCount     int    `json:"document_count"`
 }
 
 // List is a paginated response.
@@ -91,6 +115,12 @@ type DocumentList = List[Document]
 // TagList is a paginated list of tags.
 type TagList = List[Tag]
 
+// CorrespondentList is a paginated list of correspondents.
+type CorrespondentList = List[Correspondent]
+
+// DocumentTypeList is a paginated list of document types.
+type DocumentTypeList = List[DocumentType]
+
 // ListOptions configures list operations.
 type ListOptions struct {
 	Page     int    // Page number (1-indexed), 0 means default
@@ -104,8 +134,10 @@ type ListOptions struct {
 
 // DocumentUpdate represents fields to update on a document.
 type DocumentUpdate struct {
-	Title *string `json:"title,omitempty"`
-	Tags  *[]int  `json:"tags,omitempty"`
+	Title         *string `json:"title,omitempty"`
+	Tags          *[]int  `json:"tags,omitempty"`
+	Correspondent *int    `json:"correspondent,omitempty"`
+	DocumentType  *int    `json:"document_type,omitempty"`
 }
 
 // TagCreate represents fields to create a new tag.
